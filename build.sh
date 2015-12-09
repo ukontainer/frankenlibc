@@ -5,8 +5,10 @@ MAKE=${MAKE-make}
 RUMPOBJ=${PWD}/rumpobj
 RUMP=${RUMPOBJ}/rump
 RUMPSRC=${PWD}/src
+LKLSRC=${PWD}/lkl-linux
 OUTDIR=${PWD}/rump
 NCPU=1
+NETBSD=false
 
 EXTRA_AFLAGS="-Wa,--noexecstack"
 
@@ -285,11 +287,19 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         RUMP="${RUMP}" \
         ${MAKE} ${OS} -C tools
 
+if [ ${NETBSD} = "true" ]
+then
+	BR_TARGET="tools build kernelheaders install"
+else
+	BR_TARGET="tools kernelheaders linuxbuild install"
+fi
+
 ./buildrump/buildrump.sh \
 	-V RUMP_CURLWP=hypercall -V RUMP_LOCKS_UP=yes \
 	-V MKPIC=no -V RUMP_KERNEL_IS_LIBC=1 \
 	-F CFLAGS=-fno-stack-protector \
 	-k -s ${RUMPSRC} -o ${RUMPOBJ} -d ${RUMP} \
+	-l ${LKLSRC} \
 	${BUILD_QUIET} ${STDJ} \
 	-F CPPFLAGS="${EXTRA_CPPFLAGS}" \
 	-F CFLAGS="${EXTRA_CFLAGS}" \
@@ -298,7 +308,7 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
 	-F CWARNFLAGS="${EXTRA_CWARNFLAGS}" \
 	-F DBG="${F_DBG}" \
 	${EXTRAFLAGS} \
-	tools build kernelheaders install
+	${BR_TARGET}
 
 # remove libraries that are not/will not work
 rm -f ${RUMP}/lib/librumpdev_ugenhc.a
@@ -331,6 +341,9 @@ done
 
 RUMPMAKE=${RUMPOBJ}/tooldir/rumpmake
 
+if [ ${NETBSD} = "true" ]
+then
+
 usermtree ${RUMP}
 userincludes ${RUMPSRC} ${NETBSDLIBS}
 
@@ -338,11 +351,34 @@ for lib in ${NETBSDLIBS}; do
         makeuserlib ${lib}
 done
 
+else
+# build musl libc for Linux
+(
+echo "=== building musl ==="
+cd musl
+# FIXME: should detect target
+MUSL_TARGET=arm
+CFLAGS+=-Wno-error=pointer-sign ./configure --disable-shared --enable-debug --disable-optimize --prefix=${RUMPOBJ}/musl --target=${MUSL_TARGET}
+cp arch/lkl/syscall_arch.h arch/arm
+make RUMPRUN=yes install
+)
+fi
+
 # permissions set wrong
 chmod -R ug+rw ${RUMP}/include/*
 # install headers
 ${INSTALL-install} -d ${OUTDIR}/include
+
+if [ ${NETBSD} = "true" ]
+then
+
 cp -a ${RUMP}/include/* ${OUTDIR}/include
+
+else # musl
+
+cp -a ${RUMP}/linux-rump/usr/include/* ${OUTDIR}/include
+cp -a ${RUMPOBJ}/musl/include/* ${OUTDIR}/include
+fi
 
 CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	AFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
@@ -428,23 +464,40 @@ then
 	done
 fi
 
+# for Linux case
+if [ ${NETBSD} != "true" ]
+then
+	appendvar FRANKEN_FLAGS "-DMUSL_LIBC"
+	ALL_LIBS=${LKLSRC}/tools/lkl/lib/liblinux.a
+fi
+
 # explode and implode
 rm -rf ${RUMPOBJ}/explode
 mkdir -p ${RUMPOBJ}/explode/libc
+mkdir -p ${RUMPOBJ}/explode/musl
 mkdir -p ${RUMPOBJ}/explode/rumpkernel
 mkdir -p ${RUMPOBJ}/explode/rumpuser
 mkdir -p ${RUMPOBJ}/explode/franken
 mkdir -p ${RUMPOBJ}/explode/platform
 (
-	cd ${RUMPOBJ}/explode/libc
-	${AR-ar} x ${RUMP}/lib/libc.a
+
+	if [ ${NETBSD} = "true" ]
+	then
+		cd ${RUMPOBJ}/explode/libc
+		${AR-ar} x ${RUMP}/lib/libc.a
+		LIBC_DIR=libc
+	else
+		cd ${RUMPOBJ}/explode/musl
+		${AR-ar} x ${RUMPOBJ}/musl/lib/libc.a
+		LIBC_DIR=musl
+	fi
 
 	# some franken .o file names conflict with libc
 	cd ${RUMPOBJ}/explode/franken
 	${AR-ar} x ${RUMP}/lib/libfranken.a
 	for f in *.o
 	do
-		[ -f ../libc/$f ] && mv $f franken_$f
+		[ -f ../${LIBC_DIR}/$f ] && mv $f franken_$f
 	done
 
 	# some platform .o file names conflict with libc
@@ -466,7 +519,7 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	${AR-ar} x ${RUMP}/lib/librumpuser.a
 
 	cd ${RUMPOBJ}/explode
-	${AR-ar} cr libc.a rumpkernel/rumpkernel.o rumpuser/*.o libc/*.o franken/*.o platform/*.o
+	${AR-ar} cr libc.a rumpkernel/rumpkernel.o rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
 )
 
 # install to OUTDIR

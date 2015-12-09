@@ -17,6 +17,9 @@ char *__progname = empty_string;
 void _libc_init(void) __attribute__((weak));
 void _libc_init() {}
 
+void __init_libc(char **envp, char *pn);
+void __libc_start_init(void);
+
 int __franken_start_main(int (*)(int,char **,char **), int, char **, char **);
 
 void _init(void) __attribute__ ((weak));
@@ -67,13 +70,19 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	/* start a new rump process */
 	rump_pub_lwproc_rfork(0);
 
+#ifndef MUSL_LIBC
 	/* init NetBSD libc */
 	_libc_init();
+
 
 	_init();
 	a = (uintptr_t)&__init_array_start;
 	for (; a < (uintptr_t)&__init_array_end; a += sizeof(void(*)()))
 		(*(void (**)())a)();
+#else
+	__init_libc(envp, argv[0]);
+	__libc_start_init();
+#endif
 
 	/* see if we have any devices to init */
 	__franken_fdinit_create();

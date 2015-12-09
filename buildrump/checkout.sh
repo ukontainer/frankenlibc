@@ -42,12 +42,12 @@
 # that once buildrump.sh is published, the NetBSD sources will be
 # available via git.
 #
-NBSRC_CVSDATE="20150520 1400UTC"
+NBSRC_CVSDATE="20151101 2242UTC"
 NBSRC_CVSFLAGS="-z3"
 
 # If set, timestamp for src/sys/rump/listsrcdir.  If unset,
 # NBSRC_CVSDATE is used.
-NBSRC_LISTDATE="20150615 1130UTC"
+#NBSRC_LISTDATE="20150615 1130UTC"
 
 # Cherry-pick patches are not in $NBSRC_CVSDATE
 # the format is "date1:dir1 dir2 dir3 ...;date2:dir 4..."
@@ -56,61 +56,15 @@ NBSRC_LISTDATE="20150615 1130UTC"
 #   20151111 1111UTC:
 #	src/sys/rump'
 #
-NBSRC_EXTRA_sys='
-    20150526 1650UTC:
-	src/sys/rump/librump/rumpkern/cons.c
-	src/sys/rump/librump/rumpvfs/rumpblk.c;
-    20150531 1200UTC:
-	src/sys/dev/pci/auich.c
-	src/sys/rump/net/Makefile.rumpnetcomp
-	src/sys/rump/net/lib/libtap;
-    20150602 0040UTC:
-	src/sys/modules/hdaudio
-	src/sys/modules/hdaudio_pci;
-    20150603 1445UTC:
-	src/sys/rump/Makefile.rump
-	src/sys/rump/README.compileopts
-	src/sys/rump/dev/lib/libpci
-	src/sys/rump/include/sys/bus.h
-	src/sys/rump/dev/Makefile.rumpdevcomp
-	src/sys/rump/dev/lib/libpci_auich;
-    20150608 1220UTC:
-	src/sys/rump/librump/rumpkern/rump.c
-	src/sys/rump/librump/rumpvfs/devnodes.c
-	src/sys/rump/librump/rumpvfs/rump_vfs_private.h
-	src/sys/rump/dev/lib/libaudio/audio_component.c;
-    20150615 1545UTC:
-	src/sys/rump/dev/lib/libumass/Makefile
-	src/sys/rump/dev/lib/libpci;
-    20150618 2230UTC:
-	src/sys/kern/syscalls.master
-	src/sys/rump/rump.sysmap
-	src/sys/rump/include/rump/rump_syscalls.h
-	src/sys/rump/librump/rumpkern/rump_syscalls.c
-	src/sys/rump/librump/rumpkern/rumpkern_syscalls.c
-	src/sys/rump/librump/rumpnet/rumpnet_syscalls.c
-	src/sys/rump/librump/rumpvfs/rumpvfs_syscalls.c
-	src/sys/sys/syscall.h
-	src/sys/sys/syscallargs.h
-	src/share/mk/bsd.own.mk;
-    20150715 1430UTC:
-	src/lib/libc/arch/i386/Makefile.inc
-	src/lib/libc/arch/i386/gen/Makefile.inc
-	src/lib/libc/arch/x86_64/Makefile.inc
-	src/lib/libc/arch/x86_64/gen/Makefile.inc'
+NBSRC_EXTRA_sys=''
 
 NBSRC_EXTRA_posix=''
 
-NBSRC_EXTRA_usr='
-    20150626 0135UTC:
-	src/external/bsd/libc++/dist/libcxxrt/src/exception.cc
-	src/lib/libpthread/pthread_types.h
-	src/sbin/raidctl/raidctl.c;
-    20150712 2100UTC:
-	src/crypto/external/bsd/openssl'
+NBSRC_EXTRA_usr=''
 
 GITREPO='https://github.com/rumpkernel/src-netbsd'
 GITREPOPUSH='git@github.com:rumpkernel/src-netbsd'
+GITREPO_LINUX='https://github.com/thehajime/lkl-linux'
 GITREVFILE='.srcgitrev'
 
 checkoutcvs ()
@@ -239,6 +193,37 @@ checkoutgit ()
 	else
 		${GIT} clone -n ${GITREPO} ${SRCDIR} || die Clone failed
 		cd ${SRCDIR}
+	fi
+
+	${GIT} checkout -q ${gitrev} || \
+	    die 'Could not checkout correct git revision. Wrong repo?'
+}
+
+# Check out Linux (LKL) sources.
+LIBOS_REV=rump-hypcall
+checkoutgitlinux ()
+{
+
+	echo ">> Fetching Linux sources to ${LINUX_SRCDIR} using git"
+
+	if [ -e "${LINUX_SRCDIR}" -a ! -e "${LINUX_SRCDIR}/.git" ]; then
+		echo '>>'
+		echo ">> NOTICE: Not a buildrump.sh-based git repo in ${LINUX_SRCDIR}"
+		echo '>> Cannot verify repository version.  Proceeding ...'
+		echo '>>'
+		return 0
+	fi
+
+	gitrev=${LIBOS_REV}
+	[ $? -eq 0 ] || die Cannot determine relevant git revision
+	if [ -e ${LINUX_SRCDIR}/.git ] ; then
+		cd ${LINUX_SRCDIR}
+#		[ -z "$(${GIT} status --porcelain)" ] \
+#		    || die "Cloned repo in ${LINUX_SRCDIR} is not clean, aborting."
+		${GIT} fetch origin rump-hypcall || die Failed to fetch repo
+	else
+		${GIT} clone -n ${GITREPO_LINUX} ${LINUX_SRCDIR} || die Clone failed
+		cd ${LINUX_SRCDIR}
 	fi
 
 	${GIT} checkout -q ${gitrev} || \
@@ -396,11 +381,12 @@ setgit ()
 
 [ "$1" = "listdates" ] && { listdates ; exit 0; }
 
-[ $# -lt 2 ] && die Invalid usage.  Run this script via buildrump.sh
 BRDIR=$(dirname $0)
-SRCDIR=${2}
-
 . ${BRDIR}/subr.sh
+
+[ $# -lt 2 ] && die Invalid usage.  Run this script via buildrump.sh
+SRCDIR=${2}
+LINUX_SRCDIR=${3}
 
 # default to the most secure source for githubdate
 if [ -z "${BUILDRUMP_CVSROOT}" ]; then
@@ -443,6 +429,13 @@ cvsall)
 git)
 	setgit || die "require working git"
 	checkoutgit
+	echo '>> checkout done'
+	;;
+linux-git)
+	setgit || die "require working git"
+	cd $(dirname $0)
+	checkoutgitlinux
+	cd $(dirname $0)
 	echo '>> checkout done'
 	;;
 githubdate)

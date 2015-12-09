@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
-#define CORESIZE 16777216
+#define CORESIZE 16777216*8
 
 static char __core[CORESIZE];
 

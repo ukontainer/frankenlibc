@@ -1,6 +1,6 @@
 #! /usr/bin/env sh
 #
-# Copyright (c) 2013 Antti Kantee <pooka@iki.fi>
+# Copyright (c) 2013, 2014, 2015 Antti Kantee <pooka@rumpkernel.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -24,16 +24,31 @@
 # SUCH DAMAGE.
 #
 
+set -u
+
 #
 # scrub necessary parts of the env
-unset BUILDRUMP_CPPCACHE
-unset CCWRAPPER_MANGLE
+BUILDRUMP_CPPCACHE=
+CCWRAPPER_MANGLE=
 
 # defaults, can be overriden by probes
 RUMP_VIRTIF=no
 HIJACK=false
 SYS_SUNOS=false
 NEED_LDSCRIPT=false
+TARBALLMODE=
+
+# empty before proven contentful
+EXTRA_CFLAGS=
+EXTRA_LDFLAGS=
+EXTRA_AFLAGS=
+EXTRA_CPPFLAGS=
+EXTRA_CWARNFLAGS=
+EXTRA_RUMPUSER=
+EXTRA_RUMPCOMMON=
+EXTRA_RUMPCLIENT=
+RUMPKERN_UNDEF=
+BUILDSH_VARGS=
 
 #
 # support routines
@@ -54,6 +69,7 @@ helpme ()
 	printf "\t-r: release build (no -g, DIAGNOSTIC, etc.).  default: no\n"
 	printf "\t-D: increase debugginess.  default: -O2 -g\n"
 	printf "\t-k: only kernel (no POSIX hypercalls).  default: all\n"
+	printf "\t-l: build Linux libos.  default: no\n"
 	echo
 	printf "\t-H: ignore diagnostic checks (expert-only).  default: no\n"
 	printf "\t-V: specify -V arguments to NetBSD build (expert-only)\n"
@@ -74,6 +90,18 @@ helpme ()
 	exit 1
 }
 
+DIAGOUT=echo
+diagout ()
+{
+
+	if [ "${1:-}" != '-r' ]; then
+		${DIAGOUT} -n '>> '
+	else
+		shift
+	fi
+	${DIAGOUT} $*
+}
+
 #
 # toolchain creation helper routines
 #
@@ -82,17 +110,6 @@ printoneconfig ()
 {
 
 	[ -z "${2}" ] || printf "%-5s %-18s: %s\n" "${1}" "${2}" "${3}"
-}
-
-printenv ()
-{
-
-	# XXX: this is not yet functional the way I want it to be
-	echo '>> Build environment (from shell)'
-	printoneconfig 'Env' 'BUILDRUMP_CPPFLAGS' "${BUILDRUMP_CPPFLAGS}"
-	printoneconfig 'Env' 'BUILDRUMP_CFLAGS' "${BUILDRUMP_CFLAGS}"
-	printoneconfig 'Env' 'BUILDRUMP_AFLAGS' "${BUILDRUMP_AFLAGS}"
-	printoneconfig 'Env' 'BUILDRUMP_LDFLAGS' "${BUILDRUMP_LDFLAGS}"
 }
 
 appendmkconf ()
@@ -113,7 +130,7 @@ appendmkconf ()
 
 		val=${2# }
 		printoneconfig "${1}" "${name}" "${val}"
-		echo "${3}${4}=${val}" >> "${MKCONF}"
+		echo "${3}${4:-}=${val}" >> "${MKCONF}"
 	fi
 }
 
@@ -122,7 +139,7 @@ appendvar_fs ()
 	vname="${1}"
 	fs="${2}"
 	shift 2
-	if [ -z "$(eval echo \${$vname})" ]; then
+	if [ -z "$(eval echo \${${vname}:-})" ]; then
 		eval ${vname}="\${*}"
 	else
 		eval ${vname}="\"\${${vname}}"\${fs}"\${*}\""
@@ -164,10 +181,10 @@ probeld ()
 	elif echo ${linkervers} | grep -q 'Solaris Link Editor' ; then
 		LD_FLAVOR=sun
 		SHLIB_MKMAP=no
-		appendvar_fs CCWRAPPER_MANGLE : '-Wl,-x='
+		appendvar_fs CCWRAPPER_MANGLE : '-Wl,-x'
 	else
-		echo '>> output from linker:'
-		echo ${linkervers}
+		diagout 'output from linker:'
+		diagout -r ${linkervers}
 		die 'GNU or Solaris ld required'
 	fi
 
@@ -190,7 +207,7 @@ probenm ()
 	    | ${CC} ${EXTRA_CFLAGS} -x c -c - -o ${OBJDIR}/probenm.o
 	lastfield=$(${NM} -go ${OBJDIR}/probenm.o | awk '/testsym/{print $NF}')
 	if [ "${lastfield}" != 'testsym' ]; then
-		echo nm: expected \"testsym\", got \"${lastfield}\"
+		diagout nm: expected \"testsym\", got \"${lastfield}\"
 		die incompatible output from probing \"${NM}\"
 	fi
 	rm -f ${OBJDIR}/probenm.o
@@ -217,13 +234,14 @@ cppdefines ()
 	var=${1}
 	shift
 	if [ $# -eq 0 ]; then
-		[ -z "${BUILDRUMP_CPPCACHE}" ] \
-		    && BUILDRUMP_CPPCACHE=$(${CC} \
-			${EXTRA_CPPFLAGS} ${EXTRA_CFLAGS} \
-			-E -Wp,-dM - < /dev/null)
+		if [ -z "${BUILDRUMP_CPPCACHE}" ]; then
+			BUILDRUMP_CPPCACHE=$(${CC} ${EXTRA_CPPFLAGS} \
+			    ${EXTRA_CFLAGS} -E -Wp,-dM - < /dev/null)
+		fi
 		cpplist="${BUILDRUMP_CPPCACHE}"
 	else
-		cpplist==$(${CC} ${EXTRA_CPPFLAGS} ${EXTRA_CFLAGS} -E -Wp,-dM "$@" - < /dev/null)
+		cpplist=$(${CC} ${EXTRA_CPPFLAGS} ${EXTRA_CFLAGS} \
+		    -E -Wp,-dM "$@" - < /dev/null)
 	fi
 	(
 	    IFS=' '
@@ -278,6 +296,16 @@ checkcheckout ()
 checkcompiler ()
 {
 
+	# Iron out the clang version differences.
+	if [ "${CC_FLAVOR}" = 'clang' ]; then
+		doesitbuild 'int main(void) {return 0;}\n' -c \
+			-Wtautological-pointer-compare
+		if [ $? -ne 0 ]; then
+			appendvar_fs CCWRAPPER_MANGLE : \
+				"-Wno-error=tautological-pointer-compare -Wno-error=tautological-compare"
+		fi
+	fi
+
 	if ! ${KERNONLY}; then
 		doesitbuild 'int main(void) {return 0;}\n' \
 		    ${EXTRA_RUMPUSER} ${EXTRA_RUMPCOMMON}
@@ -308,17 +336,19 @@ probe_rumpuserbits ()
 	# Musl does not require it
 	doesitbuild '#include <pthread.h>\n
 		#include <stddef.h>\n
-		void *t(void *);void *t(void *arg) {return NULL;}\n
-		int main(void) {pthread_t p;return pthread_create(&p,NULL,t,NULL);}'
+		static void *t(void *arg) {return NULL;}\n
+		int main(void)\n
+		{pthread_t p;return pthread_create(&p,NULL,t,NULL);}\n'
 	if [ $? -eq 0 ]; then
-		appendvar_fs CCWRAPPER_MANGLE : '-lpthread='
+		appendvar_fs CCWRAPPER_MANGLE : '-lpthread'
 	fi
 
-	# is it a source tree which comes with autoconf?  if so, prefer that
-	if [ -x ${SRCDIR}/lib/librumpuser/configure \
-	     -a ! -f ${BRTOOLDIR}/autoconf/rumpuser_config.h ]; then
-		echo '>> librumpuser configure script detected.  running'
-		echo '>>'
+	[ -x ${SRCDIR}/lib/librumpuser/configure ] \
+	    || die 'librumpuser configure script missing (source dir too old)'
+
+	if [ ! -f ${BRTOOLDIR}/autoconf/rumpuser_config.h ]; then
+		diagout '>> running librumpuser configure script'
+		diagout
 		mkdir -p ${BRTOOLDIR}/autoconf
 		( export CFLAGS="${EXTRA_CFLAGS}"
 		  export LDFLAGS="${EXTRA_LDFLAGS}"
@@ -329,41 +359,23 @@ probe_rumpuserbits ()
 		[ $? -eq 0 ] || die configure script failed
 	fi
 
-	if [ -f ${BRTOOLDIR}/autoconf/rumpuser_config.h ]; then
-		echo "CPPFLAGS+=-DRUMPUSER_CONFIG=yes" >> "${MKCONF}"
-		echo "CPPFLAGS+=-I${BRTOOLDIR}/autoconf" >> "${MKCONF}"
-		return 0
-	fi
+	echo "CPPFLAGS+=-DRUMPUSER_CONFIG=yes" >> "${MKCONF}"
+	echo "CPPFLAGS+=-I${BRTOOLDIR}/autoconf" >> "${MKCONF}"
+}
 
-	#
-	# else, homegrown autoconf for old source trees
-	#
+writeproberes ()
+{
 
-	#
-	# Check if the target supports posix_memalign()
-	doesitbuild \
-	    '#include <stdlib.h>
-		void *m;int main(void){posix_memalign(&m,0,0);return 0;}\n'
-	[ $? -eq 0 ] && POSIX_MEMALIGN='-DHAVE_POSIX_MEMALIGN'
+	probevars='
+		HAVE_LLVM
+		HAVE_PCC
+		MACHINE
+		MACHINE_GNU_ARCH
+	'
 
-	doesitbuild \
-	    '#include <sys/ioctl.h>\n#include <unistd.h>\n
-	    int ioctl(int fd, int cmd, ...); int main(void) {return 0;}\n'
-	[ $? -eq 0 ] && IOCTL_CMD_INT='-DHAVE_IOCTL_CMD_INT'
-
-	# two or three-arg pthread_setname_np().  or none?
-	doesitbuild '#define _GNU_SOURCE\n#include <pthread.h>\n
-	    int main(void) {
-		pthread_t pt; pthread_setname_np(pt, "jee", 0);return 0;}' -c
-	[ $? -eq 0 ] && PTHREAD_SETNAME_NP='-DHAVE_PTHREAD_SETNAME_3'
-	doesitbuild '#define _GNU_SOURCE\n#include <pthread.h>\n
-	    int main(void) {
-		pthread_t pt; pthread_setname_np(pt, "jee");return 0;}' -c
-	[ $? -eq 0 ] && PTHREAD_SETNAME_NP='-DHAVE_PTHREAD_SETNAME_2'
-
-	appendmkconf 'Probe' "${POSIX_MEMALIGN}" "CPPFLAGS" +
-	appendmkconf 'Probe' "${IOCTL_CMD_INT}" "CPPFLAGS" +
-	appendmkconf 'Probe' "${PTHREAD_SETNAME_NP}" "CPPFLAGS" +
+	for x in ${probevars}; do
+		printf 'BUILDRUMP_%s="%s"\n' ${x} $(eval echo \${${x}:-})
+	done
 }
 
 WRAPPERBODY='int
@@ -420,7 +432,7 @@ maketoolwrapper ()
 	else
 		lcx=$(echo ${tool} | tr '[A-Z]' '[a-z]')
 	fi
-	tname=${BRTOOLDIR}/bin/${MACH_ARCH}--netbsd${TOOLABI}-${lcx}
+	tname=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--netbsd${TOOLABI}-${lcx}
 
 	printoneconfig 'Tool' "${tool}" "${fptool}"
 
@@ -442,7 +454,7 @@ maketoolwrapper ()
 		(
 			IFS=:
 			for xf in ${CCWRAPPER_MANGLE}; do
-				IFS==
+				IFS=' '
 				set -- ${xf}
 				printf '\t"%s",\n' ${1}
 			done
@@ -451,9 +463,9 @@ maketoolwrapper ()
 		(
 			IFS=:
 			for xf in ${CCWRAPPER_MANGLE}; do
-				IFS==
+				IFS=' '
 				set -- ${xf}
-				printf '\t"%s",\n' ${2}
+				printf '\t"%s",\n' ${2:-}
 			done
 		)
 		printf '};\n\n'
@@ -462,6 +474,7 @@ maketoolwrapper ()
 		printf '\texecvp(argv[0], (void *)(uintptr_t)argv);\n'
 		printf '\treturn 0;\n}\n'
 		exec 1>&3 3>&-
+
 		${HOST_CC} ${OBJDIR}/wrapper.c -o ${tname} \
 		    || die failed to build wrapper for ${tool}
 		rm -f ${OBJDIR}/wrapper.c
@@ -516,21 +529,27 @@ maketools ()
 
 	# create a cpp wrapper, but run it via cc -E
 	if [ "${CC_FLAVOR}" = 'clang' ]; then
-		tname=${BRTOOLDIR}/bin/${MACH_ARCH}--netbsd${TOOLABI}-clang-cpp
+		cppname=clang-cpp
 	else
-		tname=${BRTOOLDIR}/bin/${MACH_ARCH}--netbsd${TOOLABI}-cpp
+		cppname=cpp
 	fi
+	tname=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--netbsd${TOOLABI}-${cppname}
 	printf '#!/bin/sh\n\nexec %s -E -x c "${@}"\n' ${CC} > ${tname}
 	chmod 755 ${tname}
 
-	# Create bounce directory used as the install target.  The
-	# purpose of this is to strip the "usr/" pathname component
-	# that is hardcoded by NetBSD Makefiles.
-	mkdir -p ${BRTOOLDIR}/dest || die "cannot create ${BRTOOLDIR}/dest"
-	rm -f ${BRTOOLDIR}/dest/usr
-	ln -s ${DESTDIR} ${BRTOOLDIR}/dest/usr
+	for x in 1 2 3; do
+		! ${HOST_CC} -o ${BRTOOLDIR}/bin/brprintmetainfo \
+		    -DSTATHACK${x} ${BRDIR}/brlib/utils/printmetainfo.c \
+		    >/dev/null 2>&1 || break
+	done
+	[ -x ${BRTOOLDIR}/bin/brprintmetainfo ] \
+	    || die failed to build brprintmetainfo
+
+	${HOST_CC} -o ${BRTOOLDIR}/bin/brrealpath \
+	    ${BRDIR}/brlib/utils/realpath.c || die failed to build brrealpath
 
 	cat >> "${MKCONF}" << EOF
+BUILDRUMP_IMACROS=${BRIMACROS}
 .if \${BUILDRUMP_SYSROOT:Uno} == "yes"
 BUILDRUMP_CPPFLAGS=--sysroot=\${BUILDRUMP_STAGE}
 .else
@@ -564,10 +583,10 @@ EOF
 	printoneconfig 'Cmd' "OBJDIR" "${OBJDIR}"
 	printoneconfig 'Cmd' "BRTOOLDIR" "${BRTOOLDIR}"
 
-	appendmkconf 'Cmd' "${RUMP_DIAGNOSTIC}" "RUMP_DIAGNOSTIC"
-	appendmkconf 'Cmd' "${RUMP_DEBUG}" "RUMP_DEBUG"
-	appendmkconf 'Cmd' "${RUMP_LOCKDEBUG}" "RUMP_LOCKDEBUG"
-	appendmkconf 'Cmd' "${DBG}" "DBG"
+	appendmkconf 'Cmd' "${RUMP_DIAGNOSTIC:-}" "RUMP_DIAGNOSTIC"
+	appendmkconf 'Cmd' "${RUMP_DEBUG:-}" "RUMP_DEBUG"
+	appendmkconf 'Cmd' "${RUMP_LOCKDEBUG:-}" "RUMP_LOCKDEBUG"
+	appendmkconf 'Cmd' "${DBG:-}" "DBG"
 	printoneconfig 'Cmd' "make -j[num]" "-j ${JNUM}"
 
 	if ${KERNONLY}; then
@@ -580,30 +599,30 @@ EOF
 	else
 		appendmkconf 'Probe' "${RUMPKERN_UNDEF}" "RUMPKERN_UNDEF"
 	fi
-	appendmkconf 'Probe' "${RUMP_CURLWP}" 'RUMP_CURLWP' ?
-	appendmkconf 'Probe' "${CTASSERT}" "CPPFLAGS" +
-	appendmkconf 'Probe' "${RUMP_VIRTIF}" "RUMP_VIRTIF"
+	appendmkconf 'Probe' "${RUMP_CURLWP:-}" 'RUMP_CURLWP' ?
+	appendmkconf 'Probe' "${CTASSERT:-}" "CPPFLAGS" +
+	appendmkconf 'Probe' "${RUMP_VIRTIF:-}" "RUMP_VIRTIF"
 	appendmkconf 'Probe' "${EXTRA_CWARNFLAGS}" "CWARNFLAGS" +
 	appendmkconf 'Probe' "${EXTRA_LDFLAGS}" "LDFLAGS" +
 	appendmkconf 'Probe' "${EXTRA_CPPFLAGS}" "CPPFLAGS" +
 	appendmkconf 'Probe' "${EXTRA_CFLAGS}" "BUILDRUMP_CFLAGS"
 	appendmkconf 'Probe' "${EXTRA_AFLAGS}" "BUILDRUMP_AFLAGS"
-	unset _tmpvar
+	_tmpvar=
 	for x in ${EXTRA_RUMPUSER} ${EXTRA_RUMPCOMMON}; do
 		appendvar _tmpvar "${x#-l}"
 	done
 	appendmkconf 'Probe' "${_tmpvar}" "RUMPUSER_EXTERNAL_DPLIBS" +
-	unset _tmpvar
+	_tmpvar=
 	for x in ${EXTRA_RUMPCLIENT} ${EXTRA_RUMPCOMMON}; do
 		appendvar _tmpvar "${x#-l}"
 	done
 	appendmkconf 'Probe' "${_tmpvar}" "RUMPCLIENT_EXTERNAL_DPLIBS" +
-	appendmkconf 'Probe' "${LDSCRIPT}" "RUMP_LDSCRIPT"
-	appendmkconf 'Probe' "${SHLIB_MKMAP}" 'SHLIB_MKMAP'
-	appendmkconf 'Probe' "${SHLIB_WARNTEXTREL}" "SHLIB_WARNTEXTREL"
-	appendmkconf 'Probe' "${MKSTATICLIB}"  "MKSTATICLIB"
-	appendmkconf 'Probe' "${MKPIC}"  "MKPIC"
-	appendmkconf 'Probe' "${MKSOFTFLOAT}"  "MKSOFTFLOAT"
+	appendmkconf 'Probe' "${LDSCRIPT:-}" "RUMP_LDSCRIPT"
+	appendmkconf 'Probe' "${SHLIB_MKMAP:-}" 'SHLIB_MKMAP'
+	appendmkconf 'Probe' "${SHLIB_WARNTEXTREL:-}" "SHLIB_WARNTEXTREL"
+	appendmkconf 'Probe' "${MKSTATICLIB:-}"  "MKSTATICLIB"
+	appendmkconf 'Probe' "${MKPIC:-}"  "MKPIC"
+	appendmkconf 'Probe' "${MKSOFTFLOAT:-}"  "MKSOFTFLOAT"
 	appendmkconf 'Probe' $(${HAVECXX} && echo yes || echo no) _BUILDRUMP_CXX
 
 	printoneconfig 'Mode' "${TARBALLMODE}" 'yes'
@@ -615,8 +634,6 @@ EOF
 	printf 'BUILDRUMP_TOOL_CPPFLAGS=-D__NetBSD__ %s %s\n' \
 	    "${EXTRA_CPPFLAGS}" "${RUMPKERN_UNDEF}"
 	exec 1>&3 3>&-
-
-	printenv
 
 	chkcrt begins
 	chkcrt ends
@@ -671,11 +688,11 @@ EOF
 	# create wrapper script to be used during buildrump.sh, plus tools
 	makemake ${RUMPMAKE} ${OBJDIR}/dest.stage tools
 
-	sysproxy=$(${RUMPMAKE} \
-	    -f ${SRCDIR}/sys/rump/kern/Makefile.rumpkerncomp \
-	    -V '${RUMPKERNCOMPS:Msysproxy}')
-	[ -n "${sysproxy}" ] \
-	    && echo RUMPKERN_SYSPROXY=-lrumpkern_sysproxy >> "${MKCONF}"
+	# Just set no MSI in imacros universally now.
+	# Need to:
+	#   a) migrate more defines there
+	#   b) set no MSI only when necessary
+	printf '#define NO_PCI_MSI_MSIX\n' > ${BRIMACROS}.building
 
 	unset ac_cv_header_zlib_h
 
@@ -684,6 +701,13 @@ EOF
 	MKCONF="${mkconf_final}"
 	mv "${omkconf}" "${MKCONF}"
 	unset omkconf mkconf_final
+
+	# set new BRIMACROS only if the contents change (avoids
+	# full rebuild, since every file in the rump kernel depends on the
+	# contents of BRIMACROS
+	if ! diff "${BRIMACROS}" "${BRIMACROS}.building" > /dev/null 2>&1; then
+		mv "${BRIMACROS}.building" "${BRIMACROS}"
+	fi
 }
 
 makemake ()
@@ -693,11 +717,13 @@ makemake ()
 	stage=$2
 	cmd=$3
 
-	env CFLAGS= HOST_LDFLAGS=-L${OBJDIR} ./build.sh \
+	CFLAGS= HOST_LDFLAGS=-L${OBJDIR} ./build.sh \
 	    -m ${MACHINE} -u \
 	    -D ${stage} -w ${wrapper} \
 	    -T ${BRTOOLDIR} -j ${JNUM} \
-	    ${LLVM} ${PCC} ${BEQUIET} \
+	    ${HAVE_LLVM:+-V HAVE_LLVM=${HAVE_LLVM}} \
+	    ${HAVE_PCC:+-V HAVE_PCC=${HAVE_PCC}} \
+	    ${BEQUIET} \
 	    -E -Z S \
 	    -V EXTERNAL_TOOLCHAIN=${BRTOOLDIR} -V TOOLCHAIN_MISSING=yes \
 	    -V TOOLS_BUILDRUMP=yes \
@@ -722,8 +748,6 @@ makebuild ()
 	# ensure we're in SRCDIR, in case "tools" wasn't run
 	cd ${SRCDIR}
 
-	printenv
-
 	targets="obj includes dependall install"
 
 	#
@@ -746,12 +770,16 @@ makebuild ()
 	    && appendvar DIRS_second ${SRCDIR}/sys/rump/share
 
 	if [ ${MACHINE} = "i386" -o ${MACHINE} = "amd64" \
-	     -o ${MACHINE} = "evbearm-el" -o ${MACHINE} = "evbearm-eb" \
-	     -o ${MACHINE} = "evbppc" -o ${MACHINE} = "evbppc64" ]; then
+	     -o ${MACHINE#evbearm} != ${MACHINE} \
+	     -o ${MACHINE#evbppc} != ${MACHINE} ]; then
 		DIRS_emul=sys/rump/kern/lib/libsys_linux
 	fi
 	${SYS_SUNOS} && appendvar DIRS_emul sys/rump/kern/lib/libsys_sunos
-	${HIJACK} && DIRS_final="lib/librumphijack"
+	if ${HIJACK}; then
+		DIRS_final="lib/librumphijack"
+	else
+		DIRS_final=
+	fi
 
 	DIRS_third="${DIRS_third} ${DIRS_emul}"
 
@@ -792,6 +820,40 @@ makebuild ()
 	fi
 }
 
+makelinuxbuild ()
+{
+	echo "=== Linux build LINUX_SRCDIR=${LINUX_SRCDIR} ==="
+	cd ${LINUX_SRCDIR}
+	VERBOSE="V=0"
+	if [ ${NOISE} -gt 1 ] ; then
+		VERBOSE="V=1"
+	fi
+
+	CROSS=$(${CC} -dumpmachine)
+	if [ ${CROSS} = "$(gcc -dumpmachine)" ]
+	then
+		CROSS=
+	else    
+		CROSS=${CROSS}-
+	fi
+
+	set -e
+	set -x
+	cd tools/lkl
+	rm -f lib/lkl.o lib/liblinux.a lib/liblkl-hijack.so
+	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/dest.stage/ -j ${JNUM} ${VERBOSE} #O=${OBJDIR}/lkl-linux/
+	cd ../../
+	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/dest.stage/ headers_install ARCH=lkl O=${DESTDIR}/linux-rump/
+	set +e
+	set +x
+}
+
+linuxtest ()
+{
+	printf 'Linux libos test ... '
+	make -C ${LINUX_SRCDIR}/tools/lkl test || die Linux libos failed
+}
+
 makeinstall ()
 {
 
@@ -799,6 +861,11 @@ makeinstall ()
 	# Makefile that could confuse rumpmake
 	stage=$(cd ${BRTOOLDIR} && ${RUMPMAKE} -V '${BUILDRUMP_STAGE}')
 	(cd ${stage}/usr ; tar -cf - .) | (cd ${DESTDIR} ; tar -xf -)
+
+	if ${BUILDLINUX}; then
+		make install DESTDIR=${DESTDIR} -C ${LINUX_SRCDIR}/tools/lkl/
+	fi
+
 }
 
 #
@@ -828,9 +895,10 @@ makekernelheaders ()
 
 settool ()
 {
+
 	tool=$1
 	crossnames=$2
-	eval evaldtool=\${${tool}}
+	eval evaldtool=\${${tool}:-}
 
 	if [ -n "${evaldtool}" ]; then
 		# if it's set in the env, we require it to exist
@@ -862,6 +930,10 @@ evaltoolchain ()
 	type ${CC} > /dev/null 2>&1 \
 	    || die cannot find \$CC: \"${CC}\".  check env.
 
+	# check that compiler want to compile at all
+	doesitbuild 'int main(void) { return 0; }' -c \
+	    || die simple cc test failed using: ${CC} ${EXTRA_CFLAGS}
+
 	# check for crossbuild
 	if ${KERNONLY}; then
 		NATIVEBUILD=false
@@ -872,10 +944,10 @@ evaltoolchain ()
 		[ $? -eq 0 ] && ${OBJDIR}/canrun
 		if [ $? -eq 0 ]; then
 			NATIVEBUILD=true
-			echo '>> NATIVE build environment probed'
+			diagout NATIVE build environment probed
 		else
 			NATIVEBUILD=false
-			echo '>> CROSS build environment probed'
+			diagout CROSS build environment probed
 		fi
 		rm -f ${OBJDIR}/canrun
 	fi
@@ -883,15 +955,16 @@ evaltoolchain ()
 	# Check for variant of compiler.
 	# XXX: why can't all cc's that are gcc actually tell me
 	#      that they're gcc with cc --version?!?
+	unset HAVE_LLVM HAVE_PCC
 	ccver=$(${CC} --version)
 	if echo ${ccver} | grep -q 'Free Software Foundation'; then
 		CC_FLAVOR=gcc
 	elif echo ${ccver} | grep -q clang; then
 		CC_FLAVOR=clang
-		LLVM='-V HAVE_LLVM=1'
+		HAVE_LLVM=yes
 	elif echo ${ccver} | grep -q pcc; then
 		CC_FLAVOR=pcc
-		PCC='-V HAVE_PCC=1'
+		HAVE_PCC=yes
 	else
 		die Unsupported \${CC} "(`type ${CC}`)"
 	fi
@@ -899,16 +972,18 @@ evaltoolchain ()
 	# See if we have a c++ compiler.  If CXX is not set,
 	# try to guess what it could be.  In the latter case, do
 	# not treat a missing c++ compiler as an error.
-	if [ -n "${CXX}" ]; then
+	: ${CXX:=g++}
+	if [ -n "${CXX:-}" ]; then
 		type ${CXX} > /dev/null 2>&1 \
 		    || die \$CXX set \(${CXX}\) but not found
 		HAVECXX=true
 	else
+		cxxguess=
 		case ${CC} in
-		*gcc)
+		*gcc*)
 			cxxguess=$(echo $CC | sed 's/gcc$/g++/')
 			;;
-		*clang)
+		*clang*)
 			cxxguess=$(echo $CC | sed 's/clang$/clang++/')
 			;;
 		*cc)
@@ -947,7 +1022,7 @@ evaltoolchain ()
 			    | sed -n -e 's/^pcc.*for //' -e 's/,.*//p' )
 		fi
 	fi
-	MACH_ARCH=$(echo ${CC_TARGET} | sed 's/-.*//' )
+	MACHINE_GNU_ARCH=$(echo ${CC_TARGET} | sed 's/-.*//' )
 
 	#
 	# Try to figure out if we're using the native toolchain or
@@ -981,13 +1056,20 @@ evaltoolchain ()
 	# check that we are in posesssion of the
 	# mandatory tools for building rump kernels
 	for tool in AR NM OBJCOPY; do
-		eval t=\${${tool}}
+		eval t=\${${tool}:-}
 		type ${t} > /dev/null || die cannot find \$${tool} "(${t})"
 	done
 
 	case ${CC_TARGET} in
 	*-linux*)
 		RUMPKERN_UNDEF='-Ulinux -U__linux -U__linux__ -U__gnu_linux__'
+		cppdefines _BIG_ENDIAN \
+		    && appendvar RUMPKERN_UNDEF -U_BIG_ENDIAN
+		cppdefines _LITTLE_ENDIAN \
+		    && appendvar RUMPKERN_UNDEF -U_LITTLE_ENDIAN
+		;;
+	*-gnu*)
+		RUMPKERN_UNDEF='-U__GNU__'
 		cppdefines _BIG_ENDIAN \
 		    && appendvar RUMPKERN_UNDEF -U_BIG_ENDIAN
 		cppdefines _LITTLE_ENDIAN \
@@ -1064,6 +1146,11 @@ evalplatform ()
 		doesitbuild '#include <linux/if_tun.h>' -c && RUMP_VIRTIF=yes
 		cppdefines '__ANDROID__' || HIJACK=true
 		;;
+	*-gnu*)
+		EXTRA_RUMPCOMMON='-ldl'
+		EXTRA_RUMPCLIENT='-lpthread'
+		appendvar EXTRA_CFLAGS -DMAXHOSTNAMELEN=256 -DPATH_MAX=1024
+		;;
 	*-openbsd*)
 		EXTRA_RUMPCLIENT='-lpthread'
 		;;
@@ -1082,7 +1169,7 @@ evalplatform ()
 		target_supported=false
 		;;
 	*-apple-darwin*)
-		echo '>> Mach-O object format used by OS X is not yet supported'
+		diagout Mach-O object format used by OS X is not yet supported
 		target_supported=false
 		;;
 	*)
@@ -1103,24 +1190,26 @@ evalplatform ()
 probearm ()
 {
 
-	# check for big endian
-	if cppdefines '__ARMEL__'; then
-		MACHINE="evbearm-el"
-		MACH_ARCH="arm"
-	else
-		MACHINE="evbearm-eb"
-		MACH_ARCH="armeb"
-	fi
-
-	TOOLABI="elf-eabi"
-
 	# NetBSD/evbarm is softfloat by default, but force the NetBSD
 	# build to use hardfloat if the compiler defaults to VFP.
 	# This is because the softfloat env is not always functional
 	# in case hardfloat is the compiler default.
 	if cppdefines __VFP_FP__; then
-		MKSOFTFLOAT=no
+		hf=hf
+	else
+		hf=
 	fi
+
+	# check for big endian
+	if cppdefines '__ARMEL__'; then
+		MACHINE="evbearm${hf}-el"
+		MACHINE_GNU_ARCH="arm"
+	else
+		MACHINE="evbearm${hf}-eb"
+		MACHINE_GNU_ARCH="armeb"
+	fi
+
+	TOOLABI="elf-eabi${hf}"
 }
 
 probecxx ()
@@ -1134,7 +1223,7 @@ probecxx ()
 
 	# if cxx doesn't support -cxx-isystem, map it to -isystem
 	if ! doesitcxx 'int i;' -c -cxx-isystem /; then
-		appendvar_fs CCWRAPPER_MANGLE : '-cxx-isystem=-isystem'
+		appendvar_fs CCWRAPPER_MANGLE : '-cxx-isystem -isystem'
 	fi
 }
 
@@ -1145,10 +1234,10 @@ probeaarch64 ()
 	# check for big endian
 	if cppdefines '__AARCH64EL__'; then
 		MACHINE="evbarm64-el"
-		MACH_ARCH="aarch64"
+		MACHINE_GNU_ARCH="aarch64"
 	else
 		MACHINE="evbarm64-eb"
-		MACH_ARCH="aarch64_be"
+		MACHINE_GNU_ARCH="aarch64_be"
 	fi
 
 	TOOLABI=""
@@ -1192,29 +1281,29 @@ probex86 ()
 
 	# we probably should unconditionally wipe out -mno-avx for userspace ...
 	doesitbuild 'int i;' -c -mno-avx \
-	    || appendvar_fs CCWRAPPER_MANGLE : '-mno-avx='
+	    || appendvar_fs CCWRAPPER_MANGLE : '-mno-avx'
 }
 
 evalmachine ()
 {
 
 	TOOLABI=''
-	case ${MACH_ARCH} in
+	case ${MACHINE_GNU_ARCH} in
 	"amd64"|"x86_64")
 		probex86
 		if ${THIRTYTWO} ; then
 			MACHINE="i386"
-			MACH_ARCH="i486"
+			MACHINE_GNU_ARCH="i486"
 			TOOLABI="elf"
 		else
 			MACHINE="amd64"
-			MACH_ARCH="x86_64"
+			MACHINE_GNU_ARCH="x86_64"
 		fi
 		;;
 	"i386"|"i486"|"i586"|"i686")
 		probex86
 		MACHINE="i386"
-		MACH_ARCH="i486"
+		MACHINE_GNU_ARCH="i486"
 		TOOLABI="elf"
 		;;
 	arm*)
@@ -1226,59 +1315,60 @@ evalmachine ()
 	"sparc"|"sparc64")
 		if ${THIRTYTWO} ; then
 			MACHINE="sparc"
-			MACH_ARCH="sparc"
+			MACHINE_GNU_ARCH="sparc"
 			TOOLABI="elf"
 		else
 			MACHINE="sparc64"
-			MACH_ARCH="sparc64"
+			MACHINE_GNU_ARCH="sparc64"
 		fi
 		;;
 	"mipsel"|"mips64el")
 		if ${THIRTYTWO} ; then
 			MACHINE="evbmips-el"
-			MACH_ARCH="mipsel"
+			MACHINE_GNU_ARCH="mipsel"
 		else
 			MACHINE="evbmips64-el"
-			MACH_ARCH="mips64el"
+			MACHINE_GNU_ARCH="mips64el"
 		fi
 		probemips
 		;;
 	"mips"|"mipseb"|"mips64"|"mips64eb")
 		if ${THIRTYTWO} ; then
 			MACHINE="evbmips-eb"
-			MACH_ARCH="mipseb"
+			MACHINE_GNU_ARCH="mipseb"
 		else
 			MACHINE="evbmips64-eb"
-			MACH_ARCH="mips64"
+			MACHINE_GNU_ARCH="mips64"
 		fi
 		probemips
 		;;
 	"powerpc"|"ppc64"|"powerpc64"|"powerpc64le")
 		if ${THIRTYTWO} ; then
 			MACHINE="evbppc"
-			MACH_ARCH="powerpc"
+			MACHINE_GNU_ARCH="powerpc"
 		else
 			MACHINE="evbppc64"
-			MACH_ARCH="powerpc64"
+			MACHINE_GNU_ARCH="powerpc64"
 			appendvar EXTRA_CWARNFLAGS -Wno-format
 		fi
 		;;
 	"alpha")
 		MACHINE="alpha"
-		MACH_ARCH="alpha"
+		MACHINE_GNU_ARCH="alpha"
 		;;
 	"riscv"|"riscv64")
 		if ${THIRTYTWO} ; then
 			MACHINE="riscv"
-			MACH_ARCH="riscv32"
+			MACHINE_GNU_ARCH="riscv32"
 		else
 			MACHINE="riscv"
-			MACH_ARCH="riscv64"
+			MACHINE_GNU_ARCH="riscv64"
 			appendvar EXTRA_CWARNFLAGS -Wno-format
 		fi
 		;;
 	esac
-	[ -z "${MACHINE}" ] && die script does not know machine \"${MACH_ARCH}\"
+	[ -z "${MACHINE}" ] \
+	    && die script does not know machine \"${MACHINE_GNU_ARCH}\"
 }
 
 parseargs ()
@@ -1289,18 +1379,20 @@ parseargs ()
 	NOISE=2
 	debugginess=0
 	KERNONLY=false
+	BUILDLINUX=false
 	OBJDIR=./obj
 	DESTDIR=./rump
 	SRCDIR=./src
+	LINUX_SRCDIR=./lkl-linux
 	JNUM=4
 
-	while getopts 'd:DhHj:kNo:qrs:T:V:F:' opt; do
+	while getopts 'd:DhHj:kl:o:qrs:T:V:F:' opt; do
 		case "$opt" in
 		d)
 			DESTDIR=${OPTARG}
 			;;
 		D)
-			[ ! -z "${RUMP_DIAGNOSTIC}" ] \
+			[ ! -z "${RUMP_DIAGNOSTIC:-}" ] \
 			    && die Cannot specify releasy debug
 
 			debugginess=$((debugginess+1))
@@ -1355,11 +1447,11 @@ parseargs ()
 		k)
 			KERNONLY=true
 			;;
-		N)
-			echo '>> The -N flag is now set by -k.'
-			echo '>> Using -N in the future will flag an error!'
-			echo '>> (giving you a few seconds to read this)'
-			sleep 5
+		l)
+			BUILDLINUX=true
+			if [ ! -z ${OPTARG} ]; then
+				LINUX_SRCDIR=${OPTARG}
+			fi
 			;;
 		o)
 			OBJDIR=${OPTARG}
@@ -1396,14 +1488,17 @@ parseargs ()
 	DBG="${F_DBG:-${DBG}}"
 
 	BEQUIET="-N${NOISE}"
-	[ -z "${BRTOOLDIR}" ] && BRTOOLDIR=${OBJDIR}/tooldir
+	[ -z "${BRTOOLDIR:-}" ] && BRTOOLDIR=${OBJDIR}/tooldir
 
 	#
 	# Determine what which parts we should execute.
 	#
-	allcmds='checkout checkoutcvs checkoutgit tools build install
-	    tests fullbuild kernelheaders'
+	allcmds='checkout checkoutcvs checkoutgit probe tools build install
+	    tests fullbuild kernelheaders linuxbuild'
 	fullbuildcmds="tools build install"
+	if ${BUILDLINUX} ; then
+	    fullbuildcmds="${fullbuildcmds} linuxbuild"
+	fi
 
 	# for compat, so that previously valid invocations don't
 	# produce an error
@@ -1412,12 +1507,14 @@ parseargs ()
 	for cmd in ${allcmds}; do
 		eval do${cmd}=false
 	done
+	ncmds=0
 	if [ $# -ne 0 ]; then
 		for arg in $*; do
 			while true ; do
 				for cmd in ${allcmds}; do
 					if [ "${arg}" = "${cmd}" ]; then
 						eval do${cmd}=true
+						ncmds=$((${ncmds}+1))
 						break 2
 					fi
 				done
@@ -1435,6 +1532,11 @@ parseargs ()
 		done
 	fi
 
+	if ${doprobe}; then
+		[ ${ncmds} -ne 1 ] && die probe works alone
+		DIAGOUT=:
+	fi
+
 	if ${docheckout} || ${docheckoutgit} ; then
 		docheckout=true
 		checkoutstyle=git
@@ -1442,6 +1544,10 @@ parseargs ()
 	if ${docheckoutcvs} ; then
 		docheckout=true
 		checkoutstyle=cvs
+	fi
+	if ${docheckout} && ${BUILDLINUX} ; then
+		docheckout=true
+		checkoutstyle=linux-git
 	fi
 
 	# sanity checks
@@ -1466,7 +1572,6 @@ resolvepaths ()
 {
 
 	# check if we're running from a tarball, i.e. is checkout possible
-	unset TARBALLMODE
 	if [ ! -f "${BRDIR}/checkout.sh" -a -f "${BRDIR}/tarup-gitdate" ]; then
 		TARBALLMODE='Run from tarball'
 	fi
@@ -1474,16 +1579,29 @@ resolvepaths ()
 	# resolve critical directories
 	abspath BRDIR
 
-	mkdir -p ${OBJDIR} || die cannot create ${OBJDIR}
-	mkdir -p ${DESTDIR} || die cannot create ${DESTDIR}
 	mkdir -p ${BRTOOLDIR} || die "cannot create ${BRTOOLDIR} (tooldir)"
 
-	abspath DESTDIR
-	abspath OBJDIR
 	abspath BRTOOLDIR
 	abspath SRCDIR
+	if [ -d ${LINUX_SRCDIR} ] ; then
+	    abspath LINUX_SRCDIR
+	fi
 
-	RUMPMAKE="${BRTOOLDIR}/_buildrumpsh-rumpmake"
+	RUMPMAKE="${BRTOOLDIR}/bin/brrumpmake"
+	BRIMACROS="${BRTOOLDIR}/include/opt_buildrump.h"
+
+	mkdir -p ${OBJDIR} || die cannot create ${OBJDIR}
+	abspath OBJDIR
+
+	mkdir -p ${DESTDIR} || die cannot create ${DESTDIR}
+	abspath DESTDIR
+
+	# Create bounce directory used as the install target.  The
+	# purpose of this is to strip the "usr/" pathname component
+	# that is hardcoded by NetBSD Makefiles.
+	mkdir -p ${BRTOOLDIR}/dest || die "cannot create ${BRTOOLDIR}/dest"
+	rm -f ${BRTOOLDIR}/dest/usr
+	ln -s ${DESTDIR} ${BRTOOLDIR}/dest/usr
 
 	# mini-mtree
 	dstage=${OBJDIR}/dest.stage/usr
@@ -1544,37 +1662,45 @@ BRDIR=$(dirname $0)
 
 # check that env is clean
 for var in CFLAGS AFLAGS LDFLAGS; do
-	[ -n "$(eval echo \${$var})" ] \
+	[ -n "$(eval echo \${${var}:-})" ] \
 	    && die unset \"${var}\" from environment, use -F instead
 done
 
 parseargs "$@"
 
-${docheckout} && { ${BRDIR}/checkout.sh ${checkoutstyle} ${SRCDIR} || exit 1; }
+${docheckout} && { ${BRDIR}/checkout.sh ${checkoutstyle} ${SRCDIR} ${LINUX_SRCDIR} || exit 1; }
 
-if ${dotools} || ${dobuild} || ${dokernelheaders} || ${doinstall} || ${dotests}
-then
-	resolvepaths
+if ${doprobe} || ${dotools} || ${dobuild} || ${dokernelheaders} \
+    || ${doinstall} || ${dotests} || ${dolinuxbuild}; then
+	${doprobe} || resolvepaths
 
 	evaltoolchain
 	evalmachine
 
 	${KERNONLY} || evalplatform
 
+	export BUILDLINUX
+	export LINUX_SRCDIR
+	${doprobe} && writeproberes
 	${dotools} && maketools
 	${dobuild} && makebuild
 	${dokernelheaders} && makekernelheaders
+	${dolinuxbuild} && makelinuxbuild
 	${doinstall} && makeinstall
 
 	if ${dotests}; then
 		if ${KERNONLY}; then
-			echo '>> Kernel-only; skipping tests (no hypervisor)'
+			diagout 'Kernel-only; skipping tests (no hypervisor)'
 		else
 			. ${BRDIR}/tests/testrump.sh
 			alltests
 		fi
+
+		if ${BUILDLINUX}; then
+			linuxtest
+		fi
 	fi
 fi
 
-echo '>> buildrump.sh ran successfully'
+diagout buildrump.sh ran successfully
 exit 0
