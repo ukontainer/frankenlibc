@@ -85,7 +85,9 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 #endif
 
 	/* see if we have any devices to init */
+#ifndef MUSL_LIBC
 	__franken_fdinit_create();
+#endif
 
 	atexit(finifn);
 

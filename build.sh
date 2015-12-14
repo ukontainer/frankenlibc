@@ -8,7 +8,7 @@ RUMPSRC=${PWD}/src
 LKLSRC=${PWD}/lkl-linux
 OUTDIR=${PWD}/rump
 NCPU=1
-NETBSD=false
+RUMP_KERNEL=linux
 
 EXTRA_AFLAGS="-Wa,--noexecstack"
 
@@ -51,6 +51,7 @@ helpme()
 {
 	printf "Usage: $0 [-h] [options] [platform]\n"
 	printf "supported options:\n"
+	printf "\t-k: type of rump kernel [netbsd|linux]. default linux\n"
 	printf "\t-L: libraries to link eg net_netinet,net_netinet6. default all\n"
 	printf "\t-m: hardcode rump memory limit. default from env or unlimited\n"
 	printf "\t-M: thread stack size. default: 64k\n"
@@ -123,7 +124,7 @@ appendvar ()
 
 . ./buildrump/subr.sh
 
-while getopts '?b:d:F:Hhj:L:M:m:o:p:qrs:V:' opt; do
+while getopts '?b:d:F:Hhj:k:L:M:m:o:p:qrs:V:' opt; do
 	case "$opt" in
 	"b")
 		mkdir -p ${OPTARG}
@@ -176,6 +177,13 @@ while getopts '?b:d:F:Hhj:L:M:m:o:p:qrs:V:' opt; do
 		;;
 	"j")
 		STDJ="-j ${OPTARG}"
+		;;
+	"k")
+		if [ "${OPTARG}" != "netbsd" ] && [ "${OPTARG}" != "linux" ] ; then
+			echo ">> ERROR Unknown rump kernel type: ${OPTARG}"
+			helpme
+		fi
+		RUMP_KERNEL="${OPTARG}"
 		;;
 	"L")
 		LIBS="${OPTARG}"
@@ -287,10 +295,12 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         RUMP="${RUMP}" \
         ${MAKE} ${OS} -C tools
 
-if [ ${NETBSD} = "true" ]
+if [ ${RUMP_KERNEL} = "netbsd" ]
 then
 	BR_TARGET="tools build kernelheaders install"
 else
+	## FIXME: i would like to remove kernel headers but linuxbuild
+	## depends on rump/rumpuser.h, which is provided by kernelheaders target..
 	BR_TARGET="tools kernelheaders linuxbuild install"
 fi
 
@@ -341,7 +351,8 @@ done
 
 RUMPMAKE=${RUMPOBJ}/tooldir/rumpmake
 
-if [ ${NETBSD} = "true" ]
+
+if [ ${RUMP_KERNEL} = "netbsd" ]
 then
 
 usermtree ${RUMP}
@@ -352,15 +363,17 @@ for lib in ${NETBSDLIBS}; do
 done
 
 else
+
 # build musl libc for Linux
 (
+set -x
 echo "=== building musl ==="
 cd musl
-# FIXME: should detect target
-MUSL_TARGET=arm
-CFLAGS+=-Wno-error=pointer-sign ./configure --disable-shared --enable-debug --disable-optimize --prefix=${RUMPOBJ}/musl --target=${MUSL_TARGET}
-cp arch/lkl/syscall_arch.h arch/arm
-make RUMPRUN=yes install
+LKL_HEADER="${RUMP}/lkl-linux/"
+CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
+./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
+	    --disable-optimize --prefix=${RUMPOBJ}/musl 2>&1 | tee $CIRCLE_TEST_REPORTS/log-conf.txt
+make install 2>&1 | tee $CIRCLE_TEST_REPORTS/log-make.txt
 )
 fi
 
@@ -369,15 +382,17 @@ chmod -R ug+rw ${RUMP}/include/*
 # install headers
 ${INSTALL-install} -d ${OUTDIR}/include
 
-if [ ${NETBSD} = "true" ]
+if [ ${RUMP_KERNEL} = "netbsd" ]
 then
 
-cp -a ${RUMP}/include/* ${OUTDIR}/include
+	cp -a ${RUMP}/include/* ${OUTDIR}/include
 
 else # musl
-
-cp -a ${RUMP}/linux-rump/usr/include/* ${OUTDIR}/include
-cp -a ${RUMPOBJ}/musl/include/* ${OUTDIR}/include
+	## FIXME: MUSL_LIBC is somehow misleading as franken also uses.
+	## LINUX_LIBC?
+	appendvar FRANKEN_FLAGS "-DMUSL_LIBC"
+	cp -a ${RUMP}/lkl-linux/usr/include/* ${OUTDIR}/include
+	cp -a ${RUMPOBJ}/musl/include/* ${OUTDIR}/include
 fi
 
 CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
@@ -465,9 +480,8 @@ then
 fi
 
 # for Linux case
-if [ ${NETBSD} != "true" ]
+if [ ${RUMP_KERNEL} != "netbsd" ]
 then
-	appendvar FRANKEN_FLAGS "-DMUSL_LIBC"
 	ALL_LIBS=${LKLSRC}/tools/lkl/lib/liblinux.a
 fi
 
@@ -480,8 +494,7 @@ mkdir -p ${RUMPOBJ}/explode/rumpuser
 mkdir -p ${RUMPOBJ}/explode/franken
 mkdir -p ${RUMPOBJ}/explode/platform
 (
-
-	if [ ${NETBSD} = "true" ]
+	if [ ${RUMP_KERNEL} = "netbsd" ]
 	then
 		cd ${RUMPOBJ}/explode/libc
 		${AR-ar} x ${RUMP}/lib/libc.a
@@ -525,6 +538,8 @@ mkdir -p ${RUMPOBJ}/explode/platform
 # install to OUTDIR
 ${INSTALL-install} -d ${BINDIR} ${OUTDIR}/lib
 ${INSTALL-install} ${RUMP}/bin/rexec ${BINDIR}
+if [ ${RUMP_KERNEL} = "netbsd" ]
+then
 (
 	cd ${RUMP}/lib
 	for f in ${USER_LIBS}
@@ -532,6 +547,7 @@ ${INSTALL-install} ${RUMP}/bin/rexec ${BINDIR}
 		${INSTALL-install} ${RUMP}/lib/lib${f}.a ${OUTDIR}/lib
 	done
 )
+fi
 ${INSTALL-install} ${RUMP}/lib/*.o ${OUTDIR}/lib
 [ -f ${RUMP}/lib/libg.a ] && ${INSTALL-install} ${RUMP}/lib/libg.a ${OUTDIR}/lib
 ${INSTALL-install} ${RUMPOBJ}/explode/libc.a ${OUTDIR}/lib
@@ -617,12 +633,15 @@ fi
 # install some useful applications
 if [ ${MAKETOOLS} = "yes" ]
 then
+if [ ${RUMP_KERNEL} = "netbsd" ]
+then
 	CC="${BINDIR}/${COMPILER}" \
 	RUMPSRC=${RUMPSRC} \
 	RUMPOBJ=${RUMPOBJ} \
 	OUTDIR=${OUTDIR} \
 	BINDIR=${BINDIR} \
 		${MAKE} ${STDJ} -C utilities
+fi
 fi
 
 # Always make tests to exercise compiler

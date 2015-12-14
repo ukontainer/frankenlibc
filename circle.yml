@@ -1,0 +1,32 @@
+## Customize the test machine
+machine:
+  # Add some environment variables
+  environment:
+   OS: $(case $CIRCLE_NODE_INDEX in 0) os='linux' ;; 1) os='qemu-arm' ;; 2) os='linux' ;; 3) os='qemu-arm' ;; esac; echo $os)
+   RUMP: $(case $CIRCLE_NODE_INDEX in 0) rump='linux' ;; 1) rump='linux' ;; 2) rump='netbsd' ;; 3) rump='netbsd' ;; esac; echo $rump)
+
+## Customize dependencies
+dependencies:
+  pre:
+    - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+    - sudo add-apt-repository ppa:linaro-maintainers/tools -y
+    - sudo add-apt-repository ppa:terry.guo/gcc-arm-embedded -y
+    - sudo apt-get update -y
+    - sudo apt-get install qemu-kvm libxen-dev -y
+    - sudo apt-get install g++-4.8 bc libfuse-dev libarchive-dev -y
+    - sudo apt-get install -y gcc-arm-none-eabi qemu-system-arm
+  post:
+    # clear cache
+    # - rm -r ~/.gradle
+
+checkout:
+  post:
+    - git submodule update --init
+
+test:
+  pre:
+    - ./build.sh -k ${RUMP} ${OS} notest:
+        parallel: true
+  override:
+    - make -C tests run:
+        parallel: true
