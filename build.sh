@@ -8,7 +8,7 @@ RUMPSRC=${PWD}/src
 LKLSRC=${PWD}/lkl-linux
 OUTDIR=${PWD}/rump
 NCPU=1
-RUMP_KERNEL=linux
+RUMP_KERNEL=netbsd
 
 EXTRA_AFLAGS="-Wa,--noexecstack"
 
@@ -277,6 +277,7 @@ if [ "${OS}" = "unknown" ]; then
 fi
 
 [ -f platform/${OS}/platform.sh ] && . platform/${OS}/platform.sh
+[ -f rumpkernel/${RUMP_KERNEL}/rumpkernel.sh ] && . rumpkernel/${RUMP_KERNEL}/rumpkernel.sh
 
 RUNTESTS="${RUNTESTS-test}"
 MAKETOOLS="${MAKETOOLS-yes}"
@@ -295,30 +296,8 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         RUMP="${RUMP}" \
         ${MAKE} ${OS} -C tools
 
-if [ ${RUMP_KERNEL} = "netbsd" ]
-then
-	BR_TARGET="tools build kernelheaders install"
-else
-	## FIXME: i would like to remove kernel headers but linuxbuild
-	## depends on rump/rumpuser.h, which is provided by kernelheaders target..
-	BR_TARGET="tools kernelheaders linuxbuild install"
-fi
-
-./buildrump/buildrump.sh \
-	-V RUMP_CURLWP=hypercall -V RUMP_LOCKS_UP=yes \
-	-V MKPIC=no -V RUMP_KERNEL_IS_LIBC=1 \
-	-F CFLAGS=-fno-stack-protector \
-	-k -s ${RUMPSRC} -o ${RUMPOBJ} -d ${RUMP} \
-	-l ${LKLSRC} \
-	${BUILD_QUIET} ${STDJ} \
-	-F CPPFLAGS="${EXTRA_CPPFLAGS}" \
-	-F CFLAGS="${EXTRA_CFLAGS}" \
-	-F AFLAGS="${EXTRA_AFLAGS}" \
-	-F LDFLAGS="${EXTRA_LDFLAGS}" \
-	-F CWARNFLAGS="${EXTRA_CWARNFLAGS}" \
-	-F DBG="${F_DBG}" \
-	${EXTRAFLAGS} \
-	${BR_TARGET}
+# call buildrump.sh
+rumpkernel_buildrump
 
 # remove libraries that are not/will not work
 rm -f ${RUMP}/lib/librumpdev_ugenhc.a
@@ -351,49 +330,16 @@ done
 
 RUMPMAKE=${RUMPOBJ}/tooldir/rumpmake
 
-
-if [ ${RUMP_KERNEL} = "netbsd" ]
-then
-
-usermtree ${RUMP}
-userincludes ${RUMPSRC} ${NETBSDLIBS}
-
-for lib in ${NETBSDLIBS}; do
-        makeuserlib ${lib}
-done
-
-else
-
-# build musl libc for Linux
-(
-set -x
-echo "=== building musl ==="
-cd musl
-LKL_HEADER="${RUMP}/lkl-linux/"
-CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
-./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
-	    --disable-optimize --prefix=${RUMPOBJ}/musl 2>&1 | tee $CIRCLE_TEST_REPORTS/log-conf.txt
-make install 2>&1 | tee $CIRCLE_TEST_REPORTS/log-make.txt
-)
-fi
+# build userspace library for rumpkernel
+rumpkernel_createuserlib
 
 # permissions set wrong
 chmod -R ug+rw ${RUMP}/include/*
 # install headers
 ${INSTALL-install} -d ${OUTDIR}/include
 
-if [ ${RUMP_KERNEL} = "netbsd" ]
-then
-
-	cp -a ${RUMP}/include/* ${OUTDIR}/include
-
-else # musl
-	## FIXME: MUSL_LIBC is somehow misleading as franken also uses.
-	## LINUX_LIBC?
-	appendvar FRANKEN_FLAGS "-DMUSL_LIBC"
-	cp -a ${RUMP}/lkl-linux/usr/include/* ${OUTDIR}/include
-	cp -a ${RUMPOBJ}/musl/include/* ${OUTDIR}/include
-fi
+# install headers of userspace lib
+rumpkernel_install_header
 
 CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	AFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
@@ -440,12 +386,8 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
 	RUMP="${RUMP}" \
 	${MAKE} ${STDJ} -C libvirtif
 
-(
-	cd libtc
-	${RUMPMAKE}
-	cp libfranken_tc.a ${RUMP}/lib/
-	${RUMPMAKE} clean
-)
+# build extra library
+rumpkernel_build_extra
 
 # find which libs we should link
 ALL_LIBS="${RUMP}/lib/librump.a
@@ -494,16 +436,8 @@ mkdir -p ${RUMPOBJ}/explode/rumpuser
 mkdir -p ${RUMPOBJ}/explode/franken
 mkdir -p ${RUMPOBJ}/explode/platform
 (
-	if [ ${RUMP_KERNEL} = "netbsd" ]
-	then
-		cd ${RUMPOBJ}/explode/libc
-		${AR-ar} x ${RUMP}/lib/libc.a
-		LIBC_DIR=libc
-	else
-		cd ${RUMPOBJ}/explode/musl
-		${AR-ar} x ${RUMPOBJ}/musl/lib/libc.a
-		LIBC_DIR=musl
-	fi
+	# explode rumpkernel specific libc
+	rumpkernel_explode_libc
 
 	# some franken .o file names conflict with libc
 	cd ${RUMPOBJ}/explode/franken
@@ -538,16 +472,10 @@ mkdir -p ${RUMPOBJ}/explode/platform
 # install to OUTDIR
 ${INSTALL-install} -d ${BINDIR} ${OUTDIR}/lib
 ${INSTALL-install} ${RUMP}/bin/rexec ${BINDIR}
-if [ ${RUMP_KERNEL} = "netbsd" ]
-then
-(
-	cd ${RUMP}/lib
-	for f in ${USER_LIBS}
-	do
-		${INSTALL-install} ${RUMP}/lib/lib${f}.a ${OUTDIR}/lib
-	done
-)
-fi
+
+# call rumpkernel specific routine
+rumpkernel_install_extra_libs
+
 ${INSTALL-install} ${RUMP}/lib/*.o ${OUTDIR}/lib
 [ -f ${RUMP}/lib/libg.a ] && ${INSTALL-install} ${RUMP}/lib/libg.a ${OUTDIR}/lib
 ${INSTALL-install} ${RUMPOBJ}/explode/libc.a ${OUTDIR}/lib
@@ -633,15 +561,7 @@ fi
 # install some useful applications
 if [ ${MAKETOOLS} = "yes" ]
 then
-if [ ${RUMP_KERNEL} = "netbsd" ]
-then
-	CC="${BINDIR}/${COMPILER}" \
-	RUMPSRC=${RUMPSRC} \
-	RUMPOBJ=${RUMPOBJ} \
-	OUTDIR=${OUTDIR} \
-	BINDIR=${BINDIR} \
-		${MAKE} ${STDJ} -C utilities
-fi
+	rumpkernel_maketools
 fi
 
 # Always make tests to exercise compiler
@@ -654,6 +574,8 @@ CC="${BINDIR}/${COMPILER}" \
 # test for executable stack
 readelf -lW ${RUMPOBJ}/tests/hello | grep RWE 1>&2 && echo "WARNING: writeable executable section (stack?) found" 1>&2
 
+rumpkernel_build_test
+
 if [ ${RUNTESTS} = "test" ]
 then
 	CC="${BINDIR}/${COMPILER}" \
@@ -661,4 +583,5 @@ then
 		RUMPOBJ="${RUMPOBJ}" \
 		BINDIR="${BINDIR}" \
 		${MAKE} -C tests run
+
 fi

@@ -89,6 +89,12 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	__franken_fdinit_create();
 #endif
 
+	/* XXX may need to have a rump kernel specific hook */
+#ifdef MUSL_LIBC
+	int lkl_if_up(int ifindex);
+	lkl_if_up(1);
+#endif
+
 	atexit(finifn);
 
 	exit(main(argc, argv, envp));

@@ -18,6 +18,10 @@ run:			$(OBJ)
 			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/hello
 			${REXEC} $(OBJDIR)/ctor
 			echo frankenlibc | ${REXEC} $(OBJDIR)/cat
+ifneq ($(wildcard $(OBJDIR)/ping),)
+			${REXEC} ${OBJDIR}/ping # -c 3 127.0.0.1
+			${REXEC} ${OBJDIR}/ping6 # -c 3 ::1
+endif
 
 $(OBJDIR)/ctor:		ctor.c $(DEPS)
 			@mkdir -p $(OBJDIR)
@@ -34,3 +38,4 @@ $(OBJDIR)/cat:		cat.c $(DEPS)
 .PHONY:			test clean
 clean:		
 			rm -f $(OBJ)
+			${MAKE} clean -C iputils

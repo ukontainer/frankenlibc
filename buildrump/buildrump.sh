@@ -841,9 +841,9 @@ makelinuxbuild ()
 	set -x
 	cd tools/lkl
 	rm -f lib/lkl.o lib/liblinux.a
-	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/dest.stage/ -j ${JNUM} ${VERBOSE} # FIXME: not supported yet O=${OBJDIR}/lkl-linux/
+	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ -j ${JNUM} ${VERBOSE} # FIXME: not supported yet O=${OBJDIR}/lkl-linux/
 	cd ../../
-	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/dest.stage/ headers_install ARCH=lkl O=${DESTDIR}/lkl-linux/
+	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ headers_install ARCH=lkl O=${DESTDIR}/lkl-linux/
 	set +e
 	set +x
 }
