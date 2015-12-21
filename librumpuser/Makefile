@@ -22,6 +22,7 @@ OBJS+=$(OBJDIR)/rumpuser_component.o
 
 OBJS+=$(OBJDIR)/rumpuser_sp.o $(OBJDIR)/rumpuser_file.o
 OBJS+=$(OBJDIR)/rumpuser_daemonize.o $(OBJDIR)/rumpuser_dl.o
+OBJS+=$(OBJDIR)/rumpuser_iomem.o $(OBJDIR)/virtio.o $(OBJDIR)/virtio_blk.o
 
 default:			$(LIB)
 
@@ -60,6 +61,18 @@ $(OBJDIR)/rumpuser_daemonize.o:	rumpuser_daemonize.c $(DEPS)
 $(OBJDIR)/rumpuser_dl.o:	rumpuser_dl.c $(DEPS)
 				@mkdir -p $(OBJDIR)
 				$(COMPILE.c) -o $@ rumpuser_dl.c
+
+$(OBJDIR)/rumpuser_iomem.o:	rumpuser_iomem.c $(DEPS)
+				@mkdir -p $(OBJDIR)
+				$(COMPILE.c) -o $@ rumpuser_iomem.c
+
+$(OBJDIR)/virtio.o:		virtio.c $(DEPS)
+				@mkdir -p $(OBJDIR)
+				$(COMPILE.c) -o $@ virtio.c
+
+$(OBJDIR)/virtio_blk.o:		virtio_blk.c $(DEPS)
+				@mkdir -p $(OBJDIR)
+				$(COMPILE.c) -o $@ virtio_blk.c
 
 .PHONY:				clean
 clean:				

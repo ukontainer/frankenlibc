@@ -251,4 +251,12 @@ int	rumpuser_sp_raise(void *, int);
 void	rumpuser_sp_fini(void *);
 #endif /* _RUMP_SYSPROXY || LIBRUMPUSER */
 
+/* I/O memory map */
+void *rumpuser_ioremap(long addr, int size);
+int rumpuser_iomem_access(const volatile void *addr, void *res, int size,
+			  int write);
+
+/* for virtio */
+char *rumpuser_virtio_devices(void);
+
 #endif /* _RUMP_RUMPUSER_H_ */

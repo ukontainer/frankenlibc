@@ -71,6 +71,11 @@ mkkey(char *k, char *n, const char *pre, int dev, int fd)
 void
 __franken_fdinit()
 {
+	/* XXX */
+#ifdef MUSL_LIBC
+	rump_pub_etfs_register(NULL, NULL, 0);
+	return;
+#endif
 	int fd;
 	struct stat st;
 

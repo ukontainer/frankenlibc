@@ -15,6 +15,8 @@ OBJ=$(OBJDIR)/hello $(OBJDIR)/ctor $(OBJDIR)/cat
 default:		$(OBJ)
 
 run:			$(OBJ)
+			dd if=/dev/zero of=disk.img bs=1024 count=20480
+			mkfs.ext4 -F disk.img
 			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/hello
 			${REXEC} $(OBJDIR)/ctor
 			echo frankenlibc | ${REXEC} $(OBJDIR)/cat
