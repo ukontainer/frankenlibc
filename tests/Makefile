@@ -19,8 +19,8 @@ run:			$(OBJ)
 			${REXEC} $(OBJDIR)/ctor
 			echo frankenlibc | ${REXEC} $(OBJDIR)/cat
 ifneq ($(wildcard $(OBJDIR)/ping),)
-			${REXEC} ${OBJDIR}/ping # -c 3 127.0.0.1
-			${REXEC} ${OBJDIR}/ping6 # -c 3 ::1
+			${REXEC} ${OBJDIR}/ping -- -c 3 127.0.0.1
+			${REXEC} ${OBJDIR}/ping6 -- -c 3 ::1
 endif
 
 $(OBJDIR)/ctor:		ctor.c $(DEPS)
