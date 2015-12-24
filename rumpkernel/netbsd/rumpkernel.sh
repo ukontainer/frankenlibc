@@ -74,5 +74,5 @@ rumpkernel_maketools()
 
 rumpkernel_build_test()
 {
-	return
+	return 0
 }

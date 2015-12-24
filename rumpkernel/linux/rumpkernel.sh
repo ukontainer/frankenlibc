@@ -31,6 +31,9 @@ rumpkernel_createuserlib()
 	./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
 		    --disable-optimize --prefix=${RUMPOBJ}/musl 2>&1 | tee $CIRCLE_TEST_REPORTS/log-conf.txt
 	make install 2>&1 | tee $CIRCLE_TEST_REPORTS/log-make.txt
+	# install libraries
+	${INSTALL-install} -d ${OUTDIR}/lib
+	${INSTALL-install} ${RUMPOBJ}/musl/lib/libpthread.a ${RUMPOBJ}/musl/lib/libcrypt.a ${OUTDIR}/lib
 )
 }
 
@@ -50,7 +53,7 @@ rumpkernel_install_header()
 
 rumpkernel_install_extra_libs ()
 {
-	return
+	return 0
 }
 
 rumpkernel_explode_libc()
@@ -77,7 +80,7 @@ rumpkernel_build_extra()
 
 rumpkernel_maketools()
 {
-	return
+	return 0
 }
 
 rumpkernel_build_test()
