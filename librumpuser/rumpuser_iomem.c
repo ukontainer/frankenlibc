@@ -7,7 +7,6 @@
 
 #include "rumpuser_int.h"
 
-
 #include "iomem.h"
 
 #define IOMEM_OFFSET_BITS		24
@@ -98,12 +97,16 @@ void unregister_iomem(void *iomem_base)
 /* rump hypercall */
 void *rumpuser_ioremap(long addr, int size)
 {
+#ifdef GOTO_PCI
+	return addr;
+#else
 	struct iomem_region *iomem_reg = find_iomem_reg((void *)addr);
 
 	if (iomem_reg && size <= iomem_reg->size)
 		return iomem_reg->iomem_addr;
 
 	return NULL;
+#endif
 }
 
 /* rump hypercall */
@@ -115,75 +118,81 @@ int rumpuser_iomem_access(const volatile void *addr, void *res, int size,
 	int ret;
 
 	if (write) {
-		switch (size){
-		case 1:
+		if (size == 1) {
 #ifdef __x86_64__
-			asm volatile("outb %0, %1" :: "a"(value), "d"(mem));
-#else __arm__
+			u8 v = *(u8 *)res;
+			asm volatile("outb %0, %1" :: "a"(v), "d"(mem));
+#elif __arm__
 #endif
-			return;
-			break;
-		case 2:
+			return 0;
+		}
+		else if (size == 2) {
 #ifdef __x86_64__
-	asm volatile("out %0, %1" :: "a"(value), "d"(mem));
-#else __arm__
+			u16 v = *(u16 *)res;
+			asm volatile("out %0, %1" :: "a"(v), "d"(mem));
+#elif __arm__
 #endif
-			return;
-			break;
-		case 4:
+			return 0;
+		}
+		else if (size == 4) {
 #ifdef __x86_64__
-	asm volatile("outl %0, %1" :: "a"(value), "d"(mem));
-#else __arm__
+			u32 v = *(u32 *)res;
+			asm volatile("outl %0, %1" :: "a"(v), "d"(mem));
+#elif __arm__
 #endif
-			return;
-			break;
-		case 8:
-		default:
+			return 0;
+		}
+		else if (size == 8) {
 #ifdef __x86_64__
-	/* XXX: not implemented yet */
-	panic("rump_io_readq");
-#else __arm__
+			/* XXX: not implemented yet */
+			panic("not implemented yet");
+#elif __arm__
 #endif
-			return;
-			break;
+			return 0;
+		}
+		else {
+			panic("not implemented yet");
+		}
 	}
 	else {
-		switch (size){
-		case 1:
+		if (size == 1) {
+#ifdef __x86_64__
 			u8 v;
-#ifdef __x86_64__
 			asm volatile("inb %1,%0" : "=a"(v) : "d"(mem));
-#else __arm__
+			*(u8 *)res = v;
+#elif __arm__
 #endif
-			return v;
-			break;
-		case 2:
+			return 0;
+		}
+		else if (size == 2) {
+#ifdef __x86_64__
 			u16 v;
-#ifdef __x86_64__
-	asm volatile("in %1,%0" : "=a"(v) : "d"(mem));
-#else __arm__
+			asm volatile("in %1,%0" : "=a"(v) : "d"(mem));
+			*(u16 *)res = v;
+#elif __arm__
 #endif
-			return v;
-			break;
-		case 4:
+			return 0;
+		}
+		else if (size == 4) {
+#ifdef __x86_64__
 			u32 v;
-#ifdef __x86_64__
-	asm volatile("inl %1,%0" : "=a"(v) : "d"(mem));
-#else __arm__
+			asm volatile("inl %1,%0" : "=a"(v) : "d"(mem));
+			*(u32 *)res = v;
+#elif __arm__
 #endif
-			return v;
-			break;
-		case 8:
-		default:
+			return 0;
+		}
+		else if (size == 8) {
 #ifdef __x86_64__
-	/* XXX: not implemented yet */
-	panic("rump_io_readq");
-#else __arm__
+			panic("not implemented yet");
+#elif __arm__
 #endif
-			return v;
-			break;
+		}
+		else {
+			panic("not implemented yet");
+		}
 	}
-#else
+#else  /* !GOTO_PCI */
 	struct iomem_region *iomem_reg;
 	int index = IOMEM_ADDR_TO_INDEX(addr);
 	int offset = IOMEM_ADDR_TO_OFFSET(addr);
