@@ -10,6 +10,12 @@
 
 #include "init.h"
 
+static int disk_id;
+long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
+		   void *data, char *mnt_str, unsigned int mnt_str_len);
+int lkl_disk_add(int fd);
+long lkl_umount_dev(char *mnt_str, int flags);
+
 enum rump_etfs_type {
 	RUMP_ETFS_REG,
 	RUMP_ETFS_BLK,
@@ -71,11 +77,6 @@ mkkey(char *k, char *n, const char *pre, int dev, int fd)
 void
 __franken_fdinit()
 {
-	/* XXX */
-#ifdef MUSL_LIBC
-	rump_pub_etfs_register(NULL, NULL, 0);
-	return;
-#endif
 	int fd;
 	struct stat st;
 
@@ -96,6 +97,10 @@ __franken_fdinit()
 			break;
 		case S_IFBLK:
 			__franken_fd[fd].seek = 1;
+#ifdef MUSL_LIBC
+			/* notify virtio-mmio dev id */
+			disk_id = lkl_disk_add(fd);
+#endif
 			break;
 		case S_IFCHR:
 			/* XXX Linux presents stdin as char device see notes to clean up */
@@ -200,7 +205,11 @@ unmount_atexit(void)
 {
 	int ret __attribute__((__unused__));
 
+#ifdef MUSL_LIBC
+	ret = lkl_umount_dev("/etc", 0);
+#else
 	ret = rump___sysimpl_unmount("/", MNT_FORCE);
+#endif
 }
 
 static int
@@ -265,6 +274,22 @@ register_net(int fd)
 static int
 register_block(int dev, int fd, int flags, off_t size, int root)
 {
+#ifdef MUSL_LIBC
+	/* FIXME: hehe always fixme tagged.. */
+	int ret;
+	char mnt_point[32] = "/etc";
+
+	printf("gogo mount disk (%d) at %s. fd=%d\n",
+			disk_id, mnt_point, fd);
+	ret = lkl_mount_dev(disk_id, "ext4", 0, NULL, mnt_point,
+			    sizeof(mnt_point));
+	if (ret < 0)
+		printf("can't mount disk (%d) at %s. err=%d\n",
+			disk_id, mnt_point, ret);
+
+	atexit(unmount_atexit);
+	return ret;
+#else
 	char key[16], rkey[16], num[16];
 	struct ufs_args ufs;
 	int ret;
@@ -289,6 +314,7 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 	if (ret == 0)
 		atexit(unmount_atexit);
 	return ret;
+#endif
 }
 
 void
@@ -326,6 +352,7 @@ __franken_fdinit_create()
 
 	/* only fd 3 will be mounted as root file system */
 	if (__franken_fd[3].valid) {
+		fd = 3;
 		switch (__franken_fd[fd].st.st_mode & S_IFMT) {
 		case S_IFREG:
 		case S_IFBLK:

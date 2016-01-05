@@ -66,14 +66,6 @@ $(OBJDIR)/rumpuser_iomem.o:	rumpuser_iomem.c $(DEPS)
 				@mkdir -p $(OBJDIR)
 				$(COMPILE.c) -o $@ rumpuser_iomem.c
 
-$(OBJDIR)/virtio.o:		virtio.c $(DEPS)
-				@mkdir -p $(OBJDIR)
-				$(COMPILE.c) -o $@ virtio.c
-
-$(OBJDIR)/virtio_blk.o:		virtio_blk.c $(DEPS)
-				@mkdir -p $(OBJDIR)
-				$(COMPILE.c) -o $@ virtio_blk.c
-
 .PHONY:				clean
 clean:				
 				rm -f $(OBJS) $(LIB)

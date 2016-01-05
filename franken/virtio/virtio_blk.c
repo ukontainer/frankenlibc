@@ -106,16 +106,6 @@ static struct virtio_dev_ops blk_ops = {
 };
 
 /* FIXME */
-static __inline long __syscall2(long n, long a1, long a2)
-{
-	unsigned long ret;
-#ifdef __x86_64__
-	__asm__ __volatile__ ("syscall" : "=a"(ret) : "a"(n), "D"(a1), "S"(a2)
-						  : "rcx", "r11", "memory");
-#endif
-	return ret;
-}
-
 static __inline long __syscall3(long n, long a1, long a2, long a3)
 {
 	unsigned long ret;
@@ -126,10 +116,8 @@ static __inline long __syscall3(long n, long a1, long a2, long a3)
 	return ret;
 }
 
-#define SYS_open				2
 #define SYS_lseek				8
 
-#define __sys_open2(x,pn,fl) __syscall2(SYS_open, pn, (fl))
 static off_t lseek(int fd, off_t offset, int whence)
 {
 #ifdef SYS__llseek
@@ -141,7 +129,7 @@ static off_t lseek(int fd, off_t offset, int whence)
 }
 
 
-int lkl_disk_add(void)
+int lkl_disk_add(int fd)
 {
 	struct virtio_blk_dev *dev;
 	unsigned long long capacity;
@@ -149,7 +137,7 @@ int lkl_disk_add(void)
 	static int count;
 	union lkl_disk_backstore backstore;
 
-	backstore.fd = __sys_open2(0, "disk.img", O_RDWR);
+	backstore.fd = fd;
 
 	dev = malloc(sizeof(*dev));
 	if (!dev)
