@@ -1,8 +1,17 @@
+#include <string.h>
+#include <thread.h>
+#include <stddef.h>
+#include <errno.h>
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <fcntl.h>
+#include <../linux/linux.h>	/* in platform/ */
 #include "virtio.h"
+#include "endian.h"
+
+#include "../../../include/linux/virtio_mmio.h"
+#include "../../lkl-linux/include/uapi/linux/virtio_blk.h"
 
 /* FIXME: should be somewhere else */
 #define LKL_DEV_BLK_TYPE_READ		0
@@ -14,17 +23,25 @@
 #define LKL_DEV_BLK_STATUS_IOERR	1
 #define LKL_DEV_BLK_STATUS_UNSUP	2
 
-union lkl_disk_backstore {
+union lkl_disk {
 	int fd;
 	void *handle;
 };
 
+struct lkl_blk_req {
+	unsigned int type;
+	unsigned int prio;
+	unsigned long long sector;
+	struct lkl_dev_buf *buf;
+	int count;
+};
+
 struct lkl_dev_blk_ops {
-	int (*get_capacity)(union lkl_disk_backstore bs,
-			    unsigned long long *res);
-	void (*request)(union lkl_disk_backstore bs, unsigned int type,
-			unsigned int prio, unsigned long long sector,
-			struct lkl_dev_buf *bufs, int count);
+	int (*get_capacity)(union lkl_disk disk, unsigned long long *res);
+#define LKL_DEV_BLK_STATUS_OK		0
+#define LKL_DEV_BLK_STATUS_IOERR	1
+#define LKL_DEV_BLK_STATUS_UNSUP	2
+	int (*request)(union lkl_disk disk, struct lkl_blk_req *req);
 };
 struct lkl_dev_blk_ops lkl_dev_blk_ops;
 
@@ -33,11 +50,10 @@ struct lkl_dev_blk_ops lkl_dev_blk_ops;
 
 struct virtio_blk_dev {
 	struct virtio_dev dev;
-	struct {
-		uint64_t capacity;
-	} config;
+	const char offset[VIRTIO_MMIO_CONFIG - sizeof(struct virtio_dev)];
+	struct virtio_blk_config config;
 	struct lkl_dev_blk_ops *ops;
-	union lkl_disk_backstore backstore;
+	union lkl_disk disk;
 };
 
 struct virtio_blk_req_header {
@@ -50,59 +66,58 @@ struct virtio_blk_req_trailer {
 	uint8_t status;
 };
 
-static int blk_check_features(uint32_t features)
+static int blk_check_features(struct virtio_dev *dev)
 {
-	if (!features)
+	if (dev->driver_features == dev->device_features)
 		return 0;
 
 	return EINVAL;
 }
 
-void lkl_dev_blk_complete(struct lkl_dev_buf *bufs, unsigned char status,
-			  int len)
+static int blk_enqueue(struct virtio_dev *dev, struct virtio_req *req)
 {
-	struct virtio_dev_req *req;
-	struct virtio_blk_req_trailer *f;
-
-	req = container_of(bufs - 1, struct virtio_dev_req, buf);
-
-	if (req->buf_count < 2) {
-		printf("virtio_blk: no status buf\n");
-		return;
-	}
-
-	if (req->buf[req->buf_count - 1].len != sizeof(*f)) {
-		printf("virtio_blk: bad status buf\n");
-	} else {
-		f = req->buf[req->buf_count - 1].addr;
-		f->status = status;
-	}
-
-	virtio_dev_complete(req, len);
-}
-
-static void blk_queue(struct virtio_dev *dev, struct virtio_dev_req *req)
-{
-	struct virtio_blk_req_header *h;
 	struct virtio_blk_dev *blk_dev;
+	struct virtio_blk_req_header *h;
+	struct virtio_blk_req_trailer *t;
+	struct lkl_blk_req lkl_req;
 
-	if (req->buf[0].len != sizeof(struct virtio_blk_req_header)) {
-		printf("virtio_blk: bad header buf\n");
-		lkl_dev_blk_complete(&req->buf[1], LKL_DEV_BLK_STATUS_UNSUP, 0);
-		return;
+	if (req->buf_count < 3) {
+		printf("virtio_blk: no status buf\n");
+		goto out;
 	}
 
 	h = req->buf[0].addr;
+	t = req->buf[req->buf_count - 1].addr;
 	blk_dev = container_of(dev, struct virtio_blk_dev, dev);
 
-	blk_dev->ops->request(blk_dev->backstore, le32toh(h->type),
-			      le32toh(h->prio), le32toh(h->sector),
-			      &req->buf[1], req->buf_count - 2);
+	t->status = LKL_DEV_BLK_STATUS_IOERR;
+
+	if (req->buf[0].len != sizeof(*h)) {
+		printf("virtio_blk: bad header buf\n");
+		goto out;
+	}
+
+	if (req->buf[req->buf_count - 1].len != sizeof(*t)) {
+		printf("virtio_blk: bad status buf\n");
+		goto out;
+	}
+
+	lkl_req.type = le32toh(h->type);
+	lkl_req.prio = le32toh(h->prio);
+	lkl_req.sector = le32toh(h->sector);
+	lkl_req.buf = &req->buf[1];
+	lkl_req.count = req->buf_count - 2;
+
+	t->status = blk_dev->ops->request(blk_dev->disk, &lkl_req);
+
+out:
+	virtio_req_complete(req, 0);
+	return 0;
 }
 
 static struct virtio_dev_ops blk_ops = {
 	.check_features = blk_check_features,
-	.queue = blk_queue,
+	.enqueue = blk_enqueue,
 };
 
 /* FIXME */
@@ -129,15 +144,12 @@ static off_t lseek(int fd, off_t offset, int whence)
 }
 
 
-int lkl_disk_add(int fd)
+int lkl_disk_add(union lkl_disk disk)
 {
 	struct virtio_blk_dev *dev;
 	unsigned long long capacity;
 	int ret;
 	static int count;
-	union lkl_disk_backstore backstore;
-
-	backstore.fd = fd;
 
 	dev = malloc(sizeof(*dev));
 	if (!dev)
@@ -151,16 +163,16 @@ int lkl_disk_add(int fd)
 	dev->dev.config_len = sizeof(dev->config);
 	dev->dev.ops = &blk_ops;
 	dev->ops = &lkl_dev_blk_ops;
-	dev->backstore = backstore;
+	dev->disk = disk;
 
-	ret = dev->ops->get_capacity(backstore, &capacity);
+	ret = dev->ops->get_capacity(disk, &capacity);
 	if (ret) {
 		ret = ENOMEM;
 		goto out_free;
 	}
 	dev->config.capacity = capacity;
 
-	ret = virtio_dev_setup(&dev->dev, 1, 65536);
+	ret = virtio_dev_setup(&dev->dev, 1, 32);
 	if (ret)
 		goto out_free;
 
@@ -177,7 +189,7 @@ out_free:
 #define SEEK_CUR 1
 #define SEEK_END 2
 /* FIXME: from posix-host.c */
-int fd_get_capacity(union lkl_disk_backstore bs, unsigned long long *res)
+int fd_get_capacity(union lkl_disk bs, unsigned long long *res)
 {
 	off_t off;
 
@@ -189,43 +201,38 @@ int fd_get_capacity(union lkl_disk_backstore bs, unsigned long long *res)
 	return 0;
 }
 
-void fd_do_rw(union lkl_disk_backstore bs, unsigned int type, unsigned int prio,
-	      unsigned long long sector, struct lkl_dev_buf *bufs, int count)
+static int blk_request(union lkl_disk disk, struct lkl_blk_req *req)
 {
 	int err = 0;
-	struct iovec *iovec = (struct iovec *)bufs;
-
-	if (count > 1)
-		printf("%s: %d\n", __func__, count);
+	struct iovec *iovec = (struct iovec *)req->buf;
 
 	/* TODO: handle short reads/writes */
-	switch (type) {
+	switch (req->type) {
 	case LKL_DEV_BLK_TYPE_READ:
-		err = preadv(bs.fd, iovec, count, sector * 512);
+		err = preadv(disk.fd, iovec, req->count, req->sector * 512);
 		break;
 	case LKL_DEV_BLK_TYPE_WRITE:
-		err = pwritev(bs.fd, iovec, count, sector * 512);
+		err = pwritev(disk.fd, iovec, req->count, req->sector * 512);
 		break;
 	case LKL_DEV_BLK_TYPE_FLUSH:
 	case LKL_DEV_BLK_TYPE_FLUSH_OUT:
 #ifdef __linux__
-		err = fdatasync(bs.fd);
+		err = fdatasync(disk.fd);
 #else
-		err = fsync(bs.fd);
+		err = fsync(disk.fd);
 #endif
 		break;
 	default:
-		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_UNSUP, 0);
-		return;
+		return LKL_DEV_BLK_STATUS_UNSUP;
 	}
 
 	if (err < 0)
-		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_IOERR, 0);
-	else
-		lkl_dev_blk_complete(bufs, LKL_DEV_BLK_STATUS_OK, err);
+		return LKL_DEV_BLK_STATUS_IOERR;
+
+	return LKL_DEV_BLK_STATUS_OK;
 }
 
 struct lkl_dev_blk_ops lkl_dev_blk_ops = {
 	.get_capacity = fd_get_capacity,
-	.request = fd_do_rw,
+	.request = blk_request,
 };

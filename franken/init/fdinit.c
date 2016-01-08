@@ -11,10 +11,22 @@
 #include "init.h"
 
 static int disk_id;
+union lkl_disk {
+	int fd;
+	void *handle;
+};
 long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
 		   void *data, char *mnt_str, unsigned int mnt_str_len);
-int lkl_disk_add(int fd);
+int lkl_disk_add(union lkl_disk disk);
 long lkl_umount_dev(char *mnt_str, int flags);
+
+static int nd_id;
+union lkl_netdev {
+        int fd;
+};
+int lkl_netdev_add(union lkl_netdev nd, void *mac);
+int lkl_if_up(int ifindex);
+int lkl_netdev_get_ifindex(int id);
 
 enum rump_etfs_type {
 	RUMP_ETFS_REG,
@@ -99,7 +111,9 @@ __franken_fdinit()
 			__franken_fd[fd].seek = 1;
 #ifdef MUSL_LIBC
 			/* notify virtio-mmio dev id */
-			disk_id = lkl_disk_add(fd);
+			union lkl_disk disk;
+			disk.fd = fd;
+			disk_id = lkl_disk_add(disk);
 #endif
 			break;
 		case S_IFCHR:
@@ -111,6 +125,12 @@ __franken_fdinit()
 			break;
 		case S_IFSOCK:
 			__franken_fd[fd].seek = 0;
+#ifdef MUSL_LIBC
+			/* notify virtio-mmio dev id */
+			union lkl_netdev nd;
+			nd.fd = fd;
+			nd_id = lkl_netdev_add(nd, NULL);
+#endif
 			break;
 		}
 	}
@@ -225,6 +245,16 @@ register_reg(int dev, int fd, int flags)
 static void
 register_net(int fd)
 {
+#ifdef MUSL_LIBC
+	/* FIXME: hehe always fixme tagged.. */
+	lkl_if_up(lkl_netdev_get_ifindex(nd_id));
+	lkl_if_set_ipv4(lkl_netdev_get_ifindex(nd_id), 0x0200010a /* 10.1.0.2 */,
+			24);
+#if 0
+	lkl_if_set_ipv4(lkl_netdev_get_ifindex(nd_id), 0x0cd1a8c0 /* 192.168.209.12 */,
+			24);
+#endif
+#else
 	char key[16], num[16];
 	int ret;
 	int sock;
@@ -269,6 +299,7 @@ register_net(int fd)
 			rump___sysimpl_close(sock);
 		}
 	}
+#endif
 }
 
 static int
@@ -279,8 +310,6 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 	int ret;
 	char mnt_point[32] = "/etc";
 
-	printf("gogo mount disk (%d) at %s. fd=%d\n",
-			disk_id, mnt_point, fd);
 	ret = lkl_mount_dev(disk_id, "ext4", 0, NULL, mnt_point,
 			    sizeof(mnt_point));
 	if (ret < 0)

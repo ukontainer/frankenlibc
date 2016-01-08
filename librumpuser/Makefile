@@ -22,7 +22,7 @@ OBJS+=$(OBJDIR)/rumpuser_component.o
 
 OBJS+=$(OBJDIR)/rumpuser_sp.o $(OBJDIR)/rumpuser_file.o
 OBJS+=$(OBJDIR)/rumpuser_daemonize.o $(OBJDIR)/rumpuser_dl.o
-OBJS+=$(OBJDIR)/rumpuser_iomem.o $(OBJDIR)/virtio.o $(OBJDIR)/virtio_blk.o
+OBJS+=$(OBJDIR)/rumpuser_iomem.o
 
 default:			$(LIB)
 

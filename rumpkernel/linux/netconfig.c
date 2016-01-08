@@ -138,3 +138,19 @@ int lkl_set_gateway(unsigned int addr)
 	return err;
 }
 
+int lkl_netdev_get_ifindex(int id)
+{
+	struct ifreq ifr;
+	int sock, ret;
+
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sock < 0)
+		return sock;
+
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth%d", id);
+	ret = ioctl(sock, SIOCGIFINDEX, (long)&ifr);
+	close(sock);
+
+	return ret < 0 ? ret : ifr.ifr_ifindex;
+}
+
