@@ -416,3 +416,8 @@ __franken_fdinit_create()
 	/* now some generic stuff */
 	mount_tmpfs();
 }
+
+void franken_recv_thread(int fd, void *thrid)
+{
+	__franken_fd[fd].wake = thrid;
+}

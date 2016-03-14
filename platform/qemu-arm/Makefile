@@ -24,6 +24,7 @@ OBJ+=$(OBJDIR)/kill.o
 OBJ+=$(OBJDIR)/mmap.o
 OBJ+=$(OBJDIR)/mprotect.o
 OBJ+=$(OBJDIR)/__libc_start_main.o
+OBJ+=$(OBJDIR)/poll.o
 OBJ+=$(OBJDIR)/pread.o
 OBJ+=$(OBJDIR)/pwrite.o
 OBJ+=$(OBJDIR)/preadv.o
@@ -111,6 +112,9 @@ $(OBJDIR)/mmap.o:		mmap.c $(HEADERS)
 
 $(OBJDIR)/mprotect.o:		mprotect.c
 				$(COMPILE.c) -o $@ mprotect.c
+
+$(OBJDIR)/poll.o:		poll.c $(HEADERS)
+				$(COMPILE.c) -o $@ poll.c
 
 $(OBJDIR)/pread.o:		pread.c $(HEADERS)
 				$(COMPILE.c) -o $@ pread.c

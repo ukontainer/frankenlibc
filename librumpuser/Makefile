@@ -22,7 +22,6 @@ OBJS+=$(OBJDIR)/rumpuser_component.o
 
 OBJS+=$(OBJDIR)/rumpuser_sp.o $(OBJDIR)/rumpuser_file.o
 OBJS+=$(OBJDIR)/rumpuser_daemonize.o $(OBJDIR)/rumpuser_dl.o
-OBJS+=$(OBJDIR)/rumpuser_iomem.o
 
 default:			$(LIB)
 
@@ -61,10 +60,6 @@ $(OBJDIR)/rumpuser_daemonize.o:	rumpuser_daemonize.c $(DEPS)
 $(OBJDIR)/rumpuser_dl.o:	rumpuser_dl.c $(DEPS)
 				@mkdir -p $(OBJDIR)
 				$(COMPILE.c) -o $@ rumpuser_dl.c
-
-$(OBJDIR)/rumpuser_iomem.o:	rumpuser_iomem.c $(DEPS)
-				@mkdir -p $(OBJDIR)
-				$(COMPILE.c) -o $@ rumpuser_iomem.c
 
 .PHONY:				clean
 clean:				

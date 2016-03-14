@@ -24,12 +24,13 @@ rumpkernel_createuserlib()
 # build musl libc for Linux
 (
 	set -x
+	set -e
 	echo "=== building musl ==="
 	cd musl
 	LKL_HEADER="${RUMP}/lkl-linux/"
 	CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
 	./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
-		    --disable-optimize --prefix=${RUMPOBJ}/musl 2>&1 | tee $CIRCLE_TEST_REPORTS/log-conf.txt
+		    --disable-optimize --prefix=${RUMPOBJ}/musl
 	make install 2>&1 | tee $CIRCLE_TEST_REPORTS/log-make.txt
 	# install libraries
 	${INSTALL-install} -d ${OUTDIR}/lib
@@ -63,9 +64,6 @@ rumpkernel_explode_libc()
 	${AR-ar} x ${RUMPOBJ}/musl/lib/libc.a
 )
 	LIBC_DIR=musl
-
-	# XXX: need more appropriate place to do this
-	cp ${RUMPOBJ}/rumpkernel/netconfig.o ${RUMPOBJ}/explode/rumpkernel
 
 }
 
