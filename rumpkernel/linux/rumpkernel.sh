@@ -31,6 +31,8 @@ rumpkernel_createuserlib()
 	CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
 	./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
 		    --disable-optimize --prefix=${RUMPOBJ}/musl
+	# XXX: bug of musl Makefile ?
+	make obj/src/internal/version.h
 	make install 2>&1 | tee $CIRCLE_TEST_REPORTS/log-make.txt
 	# install libraries
 	${INSTALL-install} -d ${OUTDIR}/lib
