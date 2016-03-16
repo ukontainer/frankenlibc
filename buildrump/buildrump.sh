@@ -432,7 +432,7 @@ maketoolwrapper ()
 	else
 		lcx=$(echo ${tool} | tr '[A-Z]' '[a-z]')
 	fi
-	tname=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--netbsd${TOOLABI}-${lcx}
+	tname=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--${RUMPKERNEL}${TOOLABI}-${lcx}
 
 	printoneconfig 'Tool' "${tool}" "${fptool}"
 
@@ -533,7 +533,7 @@ maketools ()
 	else
 		cppname=cpp
 	fi
-	tname=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--netbsd${TOOLABI}-${cppname}
+	tname=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--${RUMPKERNEL}${TOOLABI}-${cppname}
 	printf '#!/bin/sh\n\nexec %s -E -x c "${@}"\n' ${CC} > ${tname}
 	chmod 755 ${tname}
 
@@ -710,6 +710,113 @@ EOF
 	fi
 }
 
+makelinuxtools ()
+{
+
+	checkcheckout
+
+	probeld
+	probenm
+	probear
+	${HAVECXX} && probecxx
+
+	cd ${OBJDIR}
+
+	# Create mk.conf.  Create it under a temp name first so as to
+	# not affect the tool build with its contents
+	MKCONF="${BRTOOLDIR}/mk.conf.building"
+	> "${MKCONF}"
+	mkconf_final="${BRTOOLDIR}/mk.conf"
+	> ${mkconf_final}
+
+	${KERNONLY} || probe_rumpuserbits
+
+	checkcompiler
+
+	#
+	# Create external toolchain wrappers.
+	mkdir -p ${BRTOOLDIR}/bin || die "cannot create ${BRTOOLDIR}/bin"
+	for x in CC AR NM OBJCOPY; do
+		maketoolwrapper true $x
+	done
+	for x in AS CXX LD OBJDUMP RANLIB READELF SIZE STRINGS STRIP; do
+		maketoolwrapper false $x
+	done
+
+	# create a cpp wrapper, but run it via cc -E
+	if [ "${CC_FLAVOR}" = 'clang' ]; then
+		cppname=clang-cpp
+	else
+		cppname=cpp
+	fi
+	tname=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--${RUMPKERNEL}${TOOLABI}-${cppname}
+	printf '#!/bin/sh\n\nexec %s -E -x c "${@}"\n' ${CC} > ${tname}
+	chmod 755 ${tname}
+
+	for x in 1 2 3; do
+		! ${HOST_CC} -o ${BRTOOLDIR}/bin/brprintmetainfo \
+		    -DSTATHACK${x} ${BRDIR}/brlib/utils/printmetainfo.c \
+		    >/dev/null 2>&1 || break
+	done
+	[ -x ${BRTOOLDIR}/bin/brprintmetainfo ] \
+	    || die failed to build brprintmetainfo
+
+	${HOST_CC} -o ${BRTOOLDIR}/bin/brrealpath \
+	    ${BRDIR}/brlib/utils/realpath.c || die failed to build brrealpath
+
+	printoneconfig 'Cmd' "SRCDIR" "${SRCDIR}"
+	printoneconfig 'Cmd' "DESTDIR" "${DESTDIR}"
+	printoneconfig 'Cmd' "OBJDIR" "${OBJDIR}"
+	printoneconfig 'Cmd' "BRTOOLDIR" "${BRTOOLDIR}"
+
+	appendmkconf 'Cmd' "${RUMP_DIAGNOSTIC:-}" "RUMP_DIAGNOSTIC"
+	appendmkconf 'Cmd' "${RUMP_DEBUG:-}" "RUMP_DEBUG"
+	appendmkconf 'Cmd' "${RUMP_LOCKDEBUG:-}" "RUMP_LOCKDEBUG"
+	appendmkconf 'Cmd' "${DBG:-}" "DBG"
+	printoneconfig 'Cmd' "make -j[num]" "-j ${JNUM}"
+
+	if ${KERNONLY}; then
+		appendmkconf Cmd yes RUMPKERN_ONLY
+	fi
+
+	if ${KERNONLY} && ! cppdefines __NetBSD__; then
+		appendmkconf 'Cmd' '-D__NetBSD__' 'CPPFLAGS' +
+		appendmkconf 'Probe' "${RUMPKERN_UNDEF}" 'CPPFLAGS' +
+	else
+		appendmkconf 'Probe' "${RUMPKERN_UNDEF}" "RUMPKERN_UNDEF"
+	fi
+	appendmkconf 'Probe' "${RUMP_CURLWP:-}" 'RUMP_CURLWP' ?
+	appendmkconf 'Probe' "${CTASSERT:-}" "CPPFLAGS" +
+	appendmkconf 'Probe' "${RUMP_VIRTIF:-}" "RUMP_VIRTIF"
+	appendmkconf 'Probe' "${EXTRA_CWARNFLAGS}" "CWARNFLAGS" +
+	appendmkconf 'Probe' "${EXTRA_LDFLAGS}" "LDFLAGS" +
+	appendmkconf 'Probe' "${EXTRA_CPPFLAGS}" "CPPFLAGS" +
+	appendmkconf 'Probe' "${EXTRA_CFLAGS}" "BUILDRUMP_CFLAGS"
+	appendmkconf 'Probe' "${EXTRA_AFLAGS}" "BUILDRUMP_AFLAGS"
+	_tmpvar=
+	for x in ${EXTRA_RUMPUSER} ${EXTRA_RUMPCOMMON}; do
+		appendvar _tmpvar "${x#-l}"
+	done
+	appendmkconf 'Probe' "${_tmpvar}" "RUMPUSER_EXTERNAL_DPLIBS" +
+	_tmpvar=
+	for x in ${EXTRA_RUMPCLIENT} ${EXTRA_RUMPCOMMON}; do
+		appendvar _tmpvar "${x#-l}"
+	done
+	appendmkconf 'Probe' "${_tmpvar}" "RUMPCLIENT_EXTERNAL_DPLIBS" +
+	appendmkconf 'Probe' "${LDSCRIPT:-}" "RUMP_LDSCRIPT"
+	appendmkconf 'Probe' "${SHLIB_MKMAP:-}" 'SHLIB_MKMAP'
+	appendmkconf 'Probe' "${SHLIB_WARNTEXTREL:-}" "SHLIB_WARNTEXTREL"
+	appendmkconf 'Probe' "${MKSTATICLIB:-}"  "MKSTATICLIB"
+	appendmkconf 'Probe' "${MKPIC:-}"  "MKPIC"
+	appendmkconf 'Probe' "${MKSOFTFLOAT:-}"  "MKSOFTFLOAT"
+	appendmkconf 'Probe' $(${HAVECXX} && echo yes || echo no) _BUILDRUMP_CXX
+
+	printoneconfig 'Mode' "${TARBALLMODE}" 'yes'
+
+	CC=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--${RUMPKERNEL}${TOOLABI}-gcc
+
+}
+
 makemake ()
 {
 
@@ -843,7 +950,7 @@ makelinuxbuild ()
 	rm -f lib/lkl.o
 	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ -j ${JNUM} ${VERBOSE} # FIXME: not supported yet O=${OBJDIR}/lkl-linux/
 	cd ../../
-	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ headers_install ARCH=lkl O=${DESTDIR}/lkl-linux/
+	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ headers_install ARCH=lkl O=${DESTDIR}/
 	set +e
 	set +x
 }
@@ -857,12 +964,12 @@ linuxtest ()
 makeinstall ()
 {
 
-	# ensure we run this in a directory that does not have a
-	# Makefile that could confuse rumpmake
-	stage=$(cd ${BRTOOLDIR} && ${RUMPMAKE} -V '${BUILDRUMP_STAGE}')
-	(cd ${stage}/usr ; tar -cf - .) | (cd ${DESTDIR} ; tar -xf -)
-
-	if ${BUILDLINUX}; then
+	if ! ${BUILDLINUX}; then
+		# ensure we run this in a directory that does not have a
+		# Makefile that could confuse rumpmake
+		stage=$(cd ${BRTOOLDIR} && ${RUMPMAKE} -V '${BUILDRUMP_STAGE}')
+		(cd ${stage}/usr ; tar -cf - .) | (cd ${DESTDIR} ; tar -xf -)
+	else
 		make install DESTDIR=${DESTDIR} -C ${LINUX_SRCDIR}/tools/lkl/
 	fi
 
@@ -1380,6 +1487,7 @@ parseargs ()
 	debugginess=0
 	KERNONLY=false
 	BUILDLINUX=false
+	RUMPKERNEL=netbsd
 	OBJDIR=./obj
 	DESTDIR=./rump
 	SRCDIR=./src
@@ -1449,6 +1557,7 @@ parseargs ()
 			;;
 		l)
 			BUILDLINUX=true
+			RUMPKERNEL=linux
 			if [ ! -z ${OPTARG} ]; then
 				LINUX_SRCDIR=${OPTARG}
 			fi
@@ -1494,7 +1603,7 @@ parseargs ()
 	# Determine what which parts we should execute.
 	#
 	allcmds='checkout checkoutcvs checkoutgit probe tools build install
-	    tests fullbuild kernelheaders linuxbuild'
+	    tests fullbuild kernelheaders linuxbuild linuxtools'
 	fullbuildcmds="tools build install"
 	if ${BUILDLINUX} ; then
 	    fullbuildcmds="${fullbuildcmds} linuxbuild"
@@ -1671,7 +1780,7 @@ parseargs "$@"
 ${docheckout} && { ${BRDIR}/checkout.sh ${checkoutstyle} ${SRCDIR} ${LINUX_SRCDIR} || exit 1; }
 
 if ${doprobe} || ${dotools} || ${dobuild} || ${dokernelheaders} \
-    || ${doinstall} || ${dotests} || ${dolinuxbuild}; then
+    || ${doinstall} || ${dotests} || ${dolinuxtools} || ${dolinuxbuild}; then
 	${doprobe} || resolvepaths
 
 	evaltoolchain
@@ -1680,9 +1789,11 @@ if ${doprobe} || ${dotools} || ${dobuild} || ${dokernelheaders} \
 	${KERNONLY} || evalplatform
 
 	export BUILDLINUX
+	export RUMPKERNEL
 	export LINUX_SRCDIR
 	${doprobe} && writeproberes
 	${dotools} && maketools
+	${dolinuxtools} && makelinuxtools
 	${dobuild} && makebuild
 	${dokernelheaders} && makekernelheaders
 	${dolinuxbuild} && makelinuxbuild

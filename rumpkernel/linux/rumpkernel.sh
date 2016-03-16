@@ -15,7 +15,7 @@ rumpkernel_buildrump()
 	-F CWARNFLAGS="${EXTRA_CWARNFLAGS}" \
 	-F DBG="${F_DBG}" \
 	${EXTRAFLAGS} \
-	-l ${LKLSRC} tools linuxbuild install
+	-l ${LKLSRC} linuxtools linuxbuild install
 
 }
 
@@ -27,7 +27,7 @@ rumpkernel_createuserlib()
 	set -e
 	echo "=== building musl ==="
 	cd musl
-	LKL_HEADER="${RUMP}/lkl-linux/"
+	LKL_HEADER="${RUMP}/"
 	CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
 	./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
 		    --disable-optimize --prefix=${RUMPOBJ}/musl
@@ -49,7 +49,7 @@ rumpkernel_install_header()
 	appendvar EXTRA_CFLAGS "-DCONFIG_LKL"
 
 	# install headers
-	cp -a ${RUMP}/lkl-linux/usr/include/* ${OUTDIR}/include
+	cp -a ${RUMP}/usr/include/* ${OUTDIR}/include
 	cp -a ${RUMPOBJ}/musl/include/* ${OUTDIR}/include
 
 }

@@ -379,13 +379,6 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
 	RUMP="${RUMP}" \
 	${MAKE} ${STDJ} -C librumpuser
 
-CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
-	LDFLAGS="${EXTRA_LDFLAGS}" \
-	CPPFLAGS="${EXTRA_CPPFLAGS} ${RUMPUSER_FLAGS}" \
-	RUMPOBJ="${RUMPOBJ}" \
-	RUMP="${RUMP}" \
-	${MAKE} ${STDJ} -C libvirtif
-
 # build extra library
 rumpkernel_build_extra
 

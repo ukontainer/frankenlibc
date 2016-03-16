@@ -312,6 +312,10 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 
 	ret = lkl_mount_dev(disk_id, "ext4", 0, NULL, mnt_point,
 			    sizeof(mnt_point));
+	if (ret < 0) {
+		ret = lkl_mount_dev(disk_id, "iso9660", 0, NULL, mnt_point,
+				    sizeof(mnt_point));
+	}
 	if (ret < 0)
 		printf("can't mount disk (%d) at %s. err=%d\n",
 			disk_id, mnt_point, ret);

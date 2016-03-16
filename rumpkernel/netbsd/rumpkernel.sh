@@ -55,6 +55,13 @@ rumpkernel_explode_libc()
 rumpkernel_build_extra()
 {
 (
+	CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
+		LDFLAGS="${EXTRA_LDFLAGS}" \
+		CPPFLAGS="${EXTRA_CPPFLAGS} ${RUMPUSER_FLAGS}" \
+		RUMPOBJ="${RUMPOBJ}" \
+		RUMP="${RUMP}" \
+		${MAKE} ${STDJ} -C libvirtif
+
 	cd libtc
 	${RUMPMAKE}
 	cp libfranken_tc.a ${RUMP}/lib/
