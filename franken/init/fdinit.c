@@ -7,26 +7,15 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <lkl.h>
 
 #include "init.h"
 
-static int disk_id;
-union lkl_disk {
-	int fd;
-	void *handle;
-};
-long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
-		   void *data, char *mnt_str, unsigned int mnt_str_len);
-int lkl_disk_add(union lkl_disk disk);
-long lkl_umount_dev(char *mnt_str, int flags);
+/* FIXME: from sys/mount.h */
+#define MS_RDONLY	 1	/* Mount read-only */
 
+static int disk_id;
 static int nd_id;
-union lkl_netdev {
-        int fd;
-};
-int lkl_netdev_add(union lkl_netdev nd, void *mac);
-int lkl_if_up(int ifindex);
-int lkl_netdev_get_ifindex(int id);
 
 enum rump_etfs_type {
 	RUMP_ETFS_REG,
@@ -226,7 +215,7 @@ unmount_atexit(void)
 	int ret __attribute__((__unused__));
 
 #ifdef MUSL_LIBC
-	ret = lkl_umount_dev("/etc", 0);
+	ret = lkl_umount_dev("/etc", 0, 1000);
 #else
 	ret = rump___sysimpl_unmount("/", MNT_FORCE);
 #endif
@@ -308,17 +297,34 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 #ifdef MUSL_LIBC
 	/* FIXME: hehe always fixme tagged.. */
 	int ret;
-	char mnt_point[32] = "/etc";
+	char mnt_point[32];
 
 	ret = lkl_mount_dev(disk_id, "ext4", 0, NULL, mnt_point,
 			    sizeof(mnt_point));
 	if (ret < 0) {
-		ret = lkl_mount_dev(disk_id, "iso9660", 0, NULL, mnt_point,
-				    sizeof(mnt_point));
+		ret = lkl_mount_dev(disk_id, "iso9660", MS_RDONLY, NULL,
+				    mnt_point, sizeof(mnt_point));
 	}
 	if (ret < 0)
 		printf("can't mount disk (%d) at %s. err=%d\n",
 			disk_id, mnt_point, ret);
+
+	/* chroot to the mounted volume (and create minimal fs) */
+	ret = lkl_sys_chroot(mnt_point);
+	if (ret) {
+		printf("can't chdir to %s: %s\n", mnt_point,
+		       lkl_strerror(ret));
+	}
+	ret = lkl_sys_mkdir("/dev/", 0700);
+	if (ret < 0) {
+		printf("can't mkdir /dev to %s: %s\n",
+		       lkl_strerror(ret));
+	}
+	ret = lkl_sys_mknod("/dev/null", LKL_S_IFCHR | 0600, LKL_MKDEV(1, 3));
+	if (ret) {
+		printf("can't mknod /dev/null to: %s\n",
+		       lkl_strerror(ret));
+	}
 
 	atexit(unmount_atexit);
 	return ret;
