@@ -7,9 +7,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
-#include <lkl.h>
 
 #include "init.h"
+
+#ifdef MUSL_LIBC
+#include <lkl.h>
+#endif
 
 /* FIXME: from sys/mount.h */
 #define MS_RDONLY	 1	/* Mount read-only */
