@@ -12,7 +12,11 @@
 #define MAP_SHARED  	0x01
 #define MAP_PRIVATE 	0x02
 #define MAP_FIXED	0x10
+#ifdef CONFIG_LKL
+#define MAP_ANON	0x20
+#else
 #define MAP_ANON	0x1000
+#endif
 #define MAP_STACK	0x2000
 
 #define MAP_ALIGNED(n)		((n) << MAP_ALIGNMENT_SHIFT)

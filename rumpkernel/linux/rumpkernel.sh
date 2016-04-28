@@ -36,7 +36,14 @@ rumpkernel_createuserlib()
 	make install 2>&1 | tee $CIRCLE_TEST_REPORTS/log-make.txt
 	# install libraries
 	${INSTALL-install} -d ${OUTDIR}/lib
-	${INSTALL-install} ${RUMPOBJ}/musl/lib/libpthread.a ${RUMPOBJ}/musl/lib/libcrypt.a ${OUTDIR}/lib
+	${INSTALL-install} ${RUMPOBJ}/musl/lib/libpthread.a \
+			   ${RUMPOBJ}/musl/lib/libcrypt.a \
+			   ${RUMPOBJ}/musl/lib/librt.a \
+			   ${RUMPOBJ}/musl/lib/libm.a \
+			   ${RUMPOBJ}/musl/lib/libdl.a \
+			   ${RUMPOBJ}/musl/lib/libutil.a \
+			   ${RUMPOBJ}/musl/lib/libresolv.a \
+			   ${OUTDIR}/lib
 )
 }
 
@@ -56,6 +63,7 @@ rumpkernel_install_header()
 
 rumpkernel_install_extra_libs ()
 {
+	UNDEF="-D__linux__ -DCONFIG_LKL -D__RUMPRUN__"
 	return 0
 }
 

@@ -43,6 +43,10 @@ rumpkernel_install_extra_libs()
 		${INSTALL-install} ${RUMP}/lib/lib${f}.a ${OUTDIR}/lib
 	done
 )
+
+UNDEF="-DNetBSD -D__RUMPRUN__"
+[ ${OS} = "linux" ] && appendvar UNDEF "-Ulinux -U__linux -U__linux__ -U__gnu_linux__"
+
 }
 
 rumpkernel_explode_libc()

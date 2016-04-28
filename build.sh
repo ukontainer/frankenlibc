@@ -475,8 +475,6 @@ ${INSTALL-install} ${RUMPOBJ}/explode/libc.a ${OUTDIR}/lib
 
 # create toolchain wrappers
 # select these based on compiler defs
-UNDEF="-D__NetBSD__ -D__RUMPRUN__"
-[ ${OS} = "linux" ] && appendvar UNDEF "-Ulinux -U__linux -U__linux__ -U__gnu_linux__"
 [ ${OS} = "freebsd" ] && appendvar UNDEF "-U__FreeBSD__"
 appendvar UNDEF "-U_BIG_ENDIAN -U_LITTLE_ENDIAN"
 if $(${CC-cc} -v 2>&1 | grep -q clang)
@@ -537,7 +535,11 @@ else
 fi
 printf "#!/bin/sh\n\nexec ${AR-ar} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-ar
 printf "#!/bin/sh\n\nexec ${NM-nm} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-nm
+printf "#!/bin/sh\n\nexec ${LD-ld} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-ld
 printf "#!/bin/sh\n\nexec ${OBJCOPY-objcopy} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-objcopy
+printf "#!/bin/sh\n\nexec ${OBJDUMP-objdump} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-objdump
+printf "#!/bin/sh\n\nexec ${RANLIB-ranlib} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-ranlib
+printf "#!/bin/sh\n\nexec ${READELF-readelf} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-readelf
 chmod +x ${BINDIR}/${TOOL_PREFIX}-*
 
 # test for duplicated symbols
