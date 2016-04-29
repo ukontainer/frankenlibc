@@ -44,7 +44,7 @@ rumpkernel_install_extra_libs()
 	done
 )
 
-UNDEF="-DNetBSD -D__RUMPRUN__"
+UNDEF="-D__NetBSD__ -D__RUMPRUN__"
 [ ${OS} = "linux" ] && appendvar UNDEF "-Ulinux -U__linux -U__linux__ -U__gnu_linux__"
 
 }
