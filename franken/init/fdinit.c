@@ -14,6 +14,9 @@
 #include <lkl.h>
 #endif
 
+struct lkl_netdev;
+struct lkl_netdev *lkl_netdev_rumpfd_create(const char *ifname, int fd);
+
 /* FIXME: from sys/mount.h */
 #define MS_RDONLY	 1	/* Mount read-only */
 
@@ -119,9 +122,11 @@ __franken_fdinit()
 			__franken_fd[fd].seek = 0;
 #ifdef MUSL_LIBC
 			/* notify virtio-mmio dev id */
-			union lkl_netdev nd;
-			nd.fd = fd;
-			nd_id = lkl_netdev_add(nd, NULL);
+			{
+				struct lkl_netdev *nd;
+				nd = lkl_netdev_rumpfd_create("tap0", fd);
+				nd_id = lkl_netdev_add(nd, NULL);
+			}
 #endif
 			break;
 		}
