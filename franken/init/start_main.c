@@ -10,6 +10,7 @@ void rump_pub_lwproc_releaselwp(void);
 #define RUMP_SIGMODEL_IGNORE 1
 
 char **environ __attribute__((weak));
+extern char **_environ;
 
 static char empty_string[] = "";
 char *__progname = empty_string;
@@ -52,6 +53,7 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	uintptr_t a;
 
 	environ = envp;
+	_environ = envp;
 
 	if (argv[0]) {
 		char *c;
