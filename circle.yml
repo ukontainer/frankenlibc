@@ -31,5 +31,4 @@ test:
     - |
          if [ "$OS" == "linux" ]; then
            make -C tests run
-         fi:
-           parallel: true
+         fi
