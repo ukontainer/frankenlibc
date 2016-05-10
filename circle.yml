@@ -28,5 +28,9 @@ test:
     - ./build.sh -k ${RUMP} ${OS} notest:
         parallel: true
   override:
-    - make -C tests run:
-        parallel: true
+    - |
+         if [ "$OS" == "qemu-arm" ]; then
+           exit 0
+         fi
+         make -C tests run:
+           parallel: true
