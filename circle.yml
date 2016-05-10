@@ -29,8 +29,7 @@ test:
         parallel: true
   override:
     - |
-         if [ "$OS" == "qemu-arm" ]; then
-           exit 0
+         if [ "$OS" == "linux" ]; then
+           make -C tests run:
+             parallel: true
          fi
-         make -C tests run:
-           parallel: true
