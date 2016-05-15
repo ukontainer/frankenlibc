@@ -11,6 +11,7 @@ void rump_pub_lwproc_releaselwp(void);
 
 char **environ __attribute__((weak));
 char **_environ __attribute__((weak));
+char **__environ __attribute__((weak));
 
 static char empty_string[] = "";
 char *__progname = empty_string;
@@ -54,6 +55,7 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 
 	environ = envp;
 	_environ = envp;
+	__environ = envp;
 
 	if (argv[0]) {
 		char *c;
