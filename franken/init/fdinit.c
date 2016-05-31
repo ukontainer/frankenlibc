@@ -124,7 +124,7 @@ __franken_fdinit()
 			/* notify virtio-mmio dev id */
 			{
 				struct lkl_netdev *nd;
-				nd = lkl_netdev_rumpfd_create("tap0", fd);
+				nd = lkl_netdev_rumpfd_create("franken-tap", fd);
 				nd_id = lkl_netdev_add(nd, NULL);
 			}
 #endif
@@ -242,20 +242,26 @@ register_reg(int dev, int fd, int flags)
 static void
 register_net(int fd)
 {
+	char *addr, *mask, *gw;
 #ifdef MUSL_LIBC
+
+	addr = getenv("FIXED_ADDRESS");
+	mask = getenv("FIXED_MASK");
+	gw = getenv("FIXED_GATEWAY");
+
+	if (addr == NULL || mask == NULL) {
+		printf("frankenlibc: no static address is specified;"
+		       " use FIXED_ADDRESS and FIXED_MASK env variable.\n");
+		return;
+	}
+
 	/* FIXME: hehe always fixme tagged.. */
 	lkl_if_up(lkl_netdev_get_ifindex(nd_id));
-	lkl_if_set_ipv4(lkl_netdev_get_ifindex(nd_id), 0x0200010a /* 10.1.0.2 */,
-			24);
-#if 0
-	lkl_if_set_ipv4(lkl_netdev_get_ifindex(nd_id), 0x0cd1a8c0 /* 192.168.209.12 */,
-			24);
-#endif
+	lkl_if_set_ipv4(lkl_netdev_get_ifindex(nd_id), inet_addr(addr), atoi(mask));
 #else
 	char key[16], num[16];
 	int ret;
 	int sock;
-	char *addr, *mask, *gw;
 	int af = AF_UNSPEC;
 	struct ifcapreq cap;
 
