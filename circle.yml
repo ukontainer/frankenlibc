@@ -4,6 +4,7 @@ machine:
   environment:
    OS: $(case $CIRCLE_NODE_INDEX in 0) os='linux' ;; 1) os='qemu-arm' ;; 2) os='linux' ;; 3) os='qemu-arm' ;; esac; echo $os)
    RUMP: $(case $CIRCLE_NODE_INDEX in 0) rump='linux' ;; 1) rump='linux' ;; 2) rump='netbsd' ;; 3) rump='netbsd' ;; esac; echo $rump)
+   PATH: /usr/lib/ccache/:$PATH
 
 ## Customize dependencies
 dependencies:
