@@ -465,7 +465,6 @@ mkdir -p ${RUMPOBJ}/explode/platform
 # install to OUTDIR
 ${INSTALL-install} -d ${BINDIR} ${OUTDIR}/lib
 ${INSTALL-install} ${RUMP}/bin/rexec ${BINDIR}
-sudo setcap cap_net_raw=ep ${BINDIR}/rexec
 
 # call rumpkernel specific routine
 rumpkernel_install_extra_libs
