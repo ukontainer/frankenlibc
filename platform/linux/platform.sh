@@ -1,3 +1,3 @@
 #!/bin/sh
 
-sudo setcap cap_net_raw=ep ${BINDIR}/rexec
+sudo setcap cap_net_raw=ep ${BINDIR}/rexec || true
