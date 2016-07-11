@@ -106,9 +106,9 @@ __franken_fdinit()
 			__franken_fd[fd].seek = 1;
 #ifdef MUSL_LIBC
 			/* notify virtio-mmio dev id */
-			union lkl_disk disk;
+			struct lkl_disk disk;
 			disk.fd = fd;
-			disk_id = lkl_disk_add(disk);
+			disk_id = lkl_disk_add(&disk);
 #endif
 			break;
 		case S_IFCHR:
