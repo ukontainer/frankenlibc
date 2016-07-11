@@ -544,7 +544,7 @@ int
 packet_open(char *post)
 {
 	struct ifreq ifr;
-	int sock, flags;
+	int sock, flags, val;
 	struct sockaddr_ll sa = {0};
 
 	sock = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
@@ -570,6 +570,11 @@ packet_open(char *post)
 		return -1;
 	if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) == -1)
 		return -1;
+
+	val = 1;
+	if (setsockopt(sock, SOL_PACKET, PACKET_QDISC_BYPASS, &val,
+		       sizeof(val)))
+		perror("PACKET_QDISC_BYPASS, ignoring");
 	return sock;
 }
 
