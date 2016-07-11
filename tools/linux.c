@@ -51,6 +51,11 @@ int capset(cap_user_header_t, cap_user_data_t);
 #endif
 #endif
 
+/* since Linux 3.14 (man 7 packet) */
+#ifndef PACKET_QDISC_BYPASS
+#define PACKET_QDISC_BYPASS 20
+#endif
+
 #ifndef SECCOMP
 int
 os_init(char *program, int nx)
