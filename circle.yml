@@ -20,6 +20,8 @@ dependencies:
     - sudo apt-get install g++-4.8 bc libfuse-dev libarchive-dev -y
     - sudo apt-get install -y gcc-arm-none-eabi qemu-system-arm libcap2-bin
   post:
+    - ./build.sh -k ${RUMP} ${OS} notest:
+        parallel: true
     # clear cache
     # - rm -r ~/.gradle
 
@@ -29,8 +31,6 @@ checkout:
 
 test:
   pre:
-    - ./build.sh -k ${RUMP} ${OS} notest:
-        parallel: true
   override:
     - |
          if [ "$OS" == "linux" ]; then
