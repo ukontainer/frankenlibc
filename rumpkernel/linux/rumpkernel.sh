@@ -64,6 +64,8 @@ rumpkernel_install_header()
 rumpkernel_install_extra_libs ()
 {
 	UNDEF="-D__linux__ -DCONFIG_LKL -D__RUMPRUN__"
+	sudo setcap cap_net_raw=ep ${BINDIR}/rexec \
+	 || echo "setcap failed. ignoring"
 	return 0
 }
 
