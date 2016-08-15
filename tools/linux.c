@@ -597,7 +597,8 @@ os_open(char *pre, char *post)
 		ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 		ifr.ifr_flags |= IFF_VNET_HDR;
 
-		vnet_hdr_sz = sizeof(struct virtio_net_hdr_v1);
+		/* XXX: struct virtio_net_hdr_v1 */
+		vnet_hdr_sz = sizeof(struct virtio_net_hdr_mrg_rxbuf);
 
 		fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
 		if (fd == -1) {
