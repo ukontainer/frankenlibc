@@ -20,6 +20,7 @@
 #include <linux/if_packet.h>
 #include <linux/capability.h>
 #include <linux/rtnetlink.h>
+#include <linux/virtio_net.h>
 
 #include "rexec.h"
 
@@ -590,10 +591,13 @@ os_open(char *pre, char *post)
 	/* eg tun:tap0 for tap0 */
 	if (strcmp(pre, "tun") == 0 || strcmp(pre, "tap") == 0) {
 		struct ifreq ifr;
-		int fd;
+		int fd, vnet_hdr_sz;
 
 		strncpy(ifr.ifr_name, post, IFNAMSIZ);
 		ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+		ifr.ifr_flags |= IFF_VNET_HDR;
+
+		vnet_hdr_sz = sizeof(struct virtio_net_hdr_v1);
 
 		fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
 		if (fd == -1) {
@@ -603,6 +607,18 @@ os_open(char *pre, char *post)
 
 		if (ioctl(fd, TUNSETIFF, &ifr) == -1) {
 			perror("TUNSETIFF");
+			return -1;
+		}
+
+		/* XXX: offload feature should be configurable */
+		if (ioctl(fd, TUNSETVNETHDRSZ, &vnet_hdr_sz) != 0) {
+			perror("TUNSETVNETHDRSZ");
+			return -1;
+		}
+
+		if (ioctl(fd, TUNSETOFFLOAD, TUN_F_CSUM | TUN_F_TSO4 |
+			  TUN_F_CSUM) != 0) {
+			perror("TUNSETOFFLOAD");
 			return -1;
 		}
 

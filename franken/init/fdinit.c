@@ -15,7 +15,8 @@
 #endif
 
 struct lkl_netdev;
-struct lkl_netdev *lkl_netdev_rumpfd_create(const char *ifname, int fd);
+struct lkl_netdev *lkl_netdev_rumpfd_create(const char *ifname, int fd,
+					    struct lkl_netdev_args *args);
 
 /* FIXME: from sys/mount.h */
 #define MS_RDONLY	 1	/* Mount read-only */
@@ -124,8 +125,10 @@ __franken_fdinit()
 			/* notify virtio-mmio dev id */
 			{
 				struct lkl_netdev *nd;
-				nd = lkl_netdev_rumpfd_create("franken-tap", fd);
-				nd_id = lkl_netdev_add(nd, NULL);
+				struct lkl_netdev_args nd_args;
+
+				nd = lkl_netdev_rumpfd_create("franken-tap", fd, &nd_args);
+				nd_id = lkl_netdev_add(nd, &nd_args);
 			}
 #endif
 			break;
