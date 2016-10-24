@@ -970,7 +970,7 @@ makeinstall ()
 		stage=$(cd ${BRTOOLDIR} && ${RUMPMAKE} -V '${BUILDRUMP_STAGE}')
 		(cd ${stage}/usr ; tar -cf - .) | (cd ${DESTDIR} ; tar -xf -)
 	else
-		make install DESTDIR=${DESTDIR} -C ${LINUX_SRCDIR}/tools/lkl/
+		make install RUMP_PREFIX=${OBJDIR}/../librumpuser/ DESTDIR=${DESTDIR} -C ${LINUX_SRCDIR}/tools/lkl/
 	fi
 
 }
