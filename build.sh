@@ -44,7 +44,7 @@ FreeBSD)
 esac
 
 STDJ="-j ${NCPU}"
-BUILD_QUIET="-qq"
+BUILD_QUIET=""
 DBG_F='-O2 -g'
 
 helpme()
