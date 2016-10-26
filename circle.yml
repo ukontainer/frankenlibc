@@ -32,8 +32,5 @@ checkout:
 test:
   pre:
   override:
-    - |
-         if [ "$OS" == "linux" ]; then
-           make -C tests run
-         fi:
+    - if [ "$OS" == "linux" ]; then make -C tests run ; fi:
          parallel: true
