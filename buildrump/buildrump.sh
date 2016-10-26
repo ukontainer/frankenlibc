@@ -947,8 +947,9 @@ makelinuxbuild ()
 	set -e
 	set -x
 	cd tools/lkl
-	make clean
-	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ -j ${JNUM} ${VERBOSE} # FIXME: not supported yet O=${OBJDIR}/lkl-linux/
+	mkdir -p ${OBJDIR}/lkl-linux/tools/lkl
+	make clean O=${OBJDIR}/lkl-linux/
+	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ -j ${JNUM} ${VERBOSE} O=${OBJDIR}/lkl-linux/
 	cd ../../
 	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ headers_install ARCH=lkl O=${DESTDIR}/
 	set +x
@@ -969,7 +970,7 @@ makeinstall ()
 		stage=$(cd ${BRTOOLDIR} && ${RUMPMAKE} -V '${BUILDRUMP_STAGE}')
 		(cd ${stage}/usr ; tar -cf - .) | (cd ${DESTDIR} ; tar -xf -)
 	else
-		make install CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ DESTDIR=${DESTDIR} -C ${LINUX_SRCDIR}/tools/lkl/
+		make install CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ DESTDIR=${DESTDIR} -C ${LINUX_SRCDIR}/tools/lkl/ O=${OBJDIR}/lkl-linux/
 	fi
 
 }
