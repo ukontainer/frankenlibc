@@ -475,8 +475,6 @@ ${INSTALL-install} ${RUMPOBJ}/explode/libc.a ${OUTDIR}/lib
 
 # create toolchain wrappers
 # select these based on compiler defs
-[ ${OS} = "freebsd" ] && appendvar UNDEF "-U__FreeBSD__"
-appendvar UNDEF "-U_BIG_ENDIAN -U_LITTLE_ENDIAN"
 if $(${CC-cc} -v 2>&1 | grep -q clang)
 then
 	TOOL_PREFIX=$(basename $(ls ${RUMPOBJ}/tooldir/bin/*-clang) | sed -e 's/-clang//' -e 's/--/-rumprun-/')

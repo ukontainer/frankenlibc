@@ -46,6 +46,8 @@ rumpkernel_install_extra_libs()
 
 UNDEF="-D__NetBSD__ -D__RUMPRUN__"
 [ ${OS} = "linux" ] && appendvar UNDEF "-Ulinux -U__linux -U__linux__ -U__gnu_linux__"
+[ ${OS} = "freebsd" ] && appendvar UNDEF "-U__FreeBSD__"
+appendvar UNDEF "-U_BIG_ENDIAN -U_LITTLE_ENDIAN"
 
 }
 
