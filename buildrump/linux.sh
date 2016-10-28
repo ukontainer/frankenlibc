@@ -33,8 +33,8 @@ makebuild ()
 
 	set -e
 	set -x
-	export RUMP_PREFIX=${RUMPSRC}/sys/rump
-	export RUMP_INCLUDE=${RUMPSRC}/sys/rump/include
+
+	export RUMP_PREFIX=${OBJDIR}/../librumpuser/
 	mkdir -p ${OBJDIR}/lkl-linux
 
 	cd tools/lkl
@@ -54,10 +54,9 @@ makeinstall ()
 	mkdir -p ${DESTDIR}/bin/
 	mkdir -p ${OBJDIR}/rumptools/dest/usr/include/rumprun
 
-	export RUMP_PREFIX=${RUMPSRC}/sys/rump
-	export RUMP_INCLUDE=${RUMPSRC}/sys/rump/include
+	export RUMP_PREFIX=${OBJDIR}/../librumpuser/
 	make rumprun=no headers_install libraries_install CROSS_COMPILE=${CROSS} \
-	     RUMP_PREFIX=${OBJDIR}/../librumpuser/ DESTDIR=${DESTDIR} \
+	     DESTDIR=${DESTDIR} \
 	     -C ${LKLSRC}/tools/lkl/ O=${OBJDIR}/lkl-linux/
 
 }
