@@ -10,6 +10,10 @@ OUTDIR=${PWD}/rump
 NCPU=1
 RUMP_KERNEL=netbsd
 
+export LKLSRC
+export RUMPSRC
+export RUMPOBJ
+
 EXTRA_AFLAGS="-Wa,--noexecstack"
 
 TARGET=$(LC_ALL=C ${CC-cc} -v 2>&1 | sed -n 's/^Target: //p' )
@@ -503,7 +507,8 @@ then
 	)
 else
 	# spec file for gcc
-	TOOL_PREFIX=$(basename $(ls ${RUMPOBJ}/tooldir/bin/*-gcc) | sed -e 's/-gcc//' -e 's/--/-rumprun-/')
+	TOOL_PREFIX=$(basename $(ls ${RUMPOBJ}/tooldir/bin/*-gcc) | \
+			  sed -e 's/-gcc//' -e "s/--netbsd/-rumprun-${RUMP_KERNEL}/")
 	COMPILER_FLAGS="-fno-stack-protector ${EXTRA_CFLAGS}"
 	COMPILER_FLAGS="$(echo ${COMPILER_FLAGS} | sed 's/--sysroot=[^ ]*//g')"
 	[ -f ${OUTDIR}/lib/crt0.o ] && appendvar STARTFILE "${OUTDIR}/lib/crt0.o"

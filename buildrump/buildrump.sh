@@ -69,7 +69,7 @@ helpme ()
 	printf "\t-r: release build (no -g, DIAGNOSTIC, etc.).  default: no\n"
 	printf "\t-D: increase debugginess.  default: -O2 -g\n"
 	printf "\t-k: only kernel (no POSIX hypercalls).  default: all\n"
-	printf "\t-l: build Linux libos.  default: no\n"
+	printf "\t-l: choose a rumpkernel: netbsd or linux.  default: netbsd\n"
 	echo
 	printf "\t-H: ignore diagnostic checks (expert-only).  default: no\n"
 	printf "\t-V: specify -V arguments to NetBSD build (expert-only)\n"
@@ -171,7 +171,7 @@ chkcrt ()
 probeld ()
 {
 
-	linkervers=$(${CC} ${EXTRA_LDFLAGS} -Wl,--version 2>&1)
+	linkervers=$(LANG=C ${CC} ${EXTRA_LDFLAGS} -Wl,--version 2>&1)
 	if echo ${linkervers} | grep -q 'GNU ld' ; then
 		LD_FLAVOR=GNU
 		LD_AS_NEEDED='-Wl,--no-as-needed'
@@ -266,6 +266,16 @@ doesitbuild ()
 		-x c - -o /dev/null $* > /dev/null 2>&1
 }
 
+doesitbuild_host ()
+{
+
+	theprog="${1}"
+	shift
+
+	printf "${theprog}" \
+	    | ${HOST_CC} -Wall -Werror -x c - -o /dev/null $* > /dev/null 2>&1
+}
+
 # like doesitbuild, except with c++
 doesitcxx ()
 {
@@ -278,19 +288,6 @@ doesitcxx ()
 	printf "${theprog}" \
 	    | ${CXX} -Werror ${EXTRA_LDFLAGS} ${EXTRA_CFLAGS}	\
 		-x c++ - -o /dev/null $* > /dev/null 2>&1
-}
-
-checkcheckout ()
-{
-
-	[ -x "${SRCDIR}/build.sh" ] || die "Cannot find ${SRCDIR}/build.sh!"
-
-	[ ! -z "${TARBALLMODE}" ] && return
-
-	if ! ${BRDIR}/checkout.sh checkcheckout ${SRCDIR} \
-	    && ! ${TITANMODE}; then
-		die 'revision mismatch, run checkout (or -H to override)'
-	fi
 }
 
 checkcompiler ()
@@ -432,7 +429,7 @@ maketoolwrapper ()
 	else
 		lcx=$(echo ${tool} | tr '[A-Z]' '[a-z]')
 	fi
-	tname=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--${RUMPKERNEL}${TOOLABI}-${lcx}
+	tname=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--netbsd${TOOLABI}-${lcx}
 
 	printoneconfig 'Tool' "${tool}" "${fptool}"
 
@@ -513,6 +510,18 @@ maketools ()
 	mkconf_final="${BRTOOLDIR}/mk.conf"
 	> ${mkconf_final}
 
+	# nuke fakelibz (compat for old libz hack, the following line can
+	# be removed e.g. in 2017)
+	rm -f ${OBJDIR}/libz.a
+
+	# We now require a host zlib for tools.  nb. we explicitly whine
+	# about this one here since the NetBSD tools build process gets
+	# very confused if you start the build, it bombs, you add zlib,
+	# and retry.
+	doesitbuild_host '#include <zlib.h>
+int main() {gzopen(NULL, NULL); return 0;}' -lz \
+	    || die 'Host zlib (libz, -lz) required, please install one!'
+
 	${KERNONLY} || probe_rumpuserbits
 
 	checkcompiler
@@ -523,9 +532,10 @@ maketools ()
 	for x in CC AR NM OBJCOPY; do
 		maketoolwrapper true $x
 	done
-	for x in AS CXX LD OBJDUMP RANLIB READELF SIZE STRINGS STRIP; do
+	for x in AS LD OBJDUMP RANLIB READELF SIZE STRINGS STRIP; do
 		maketoolwrapper false $x
 	done
+	${HAVECXX} && maketoolwrapper false CXX
 
 	# create a cpp wrapper, but run it via cc -E
 	if [ "${CC_FLAVOR}" = 'clang' ]; then
@@ -533,7 +543,8 @@ maketools ()
 	else
 		cppname=cpp
 	fi
-	tname=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--${RUMPKERNEL}${TOOLABI}-${cppname}
+	# NB: we need rumpmake to build libbmk_*, but rumpmake needs --netbsd TOOLTUPLES
+	tname=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--netbsd${TOOLABI}-${cppname}
 	printf '#!/bin/sh\n\nexec %s -E -x c "${@}"\n' ${CC} > ${tname}
 	chmod 755 ${tname}
 
@@ -593,8 +604,8 @@ EOF
 		appendmkconf Cmd yes RUMPKERN_ONLY
 	fi
 
-	if ${KERNONLY} && ! cppdefines __NetBSD__; then
-		appendmkconf 'Cmd' '-D__NetBSD__' 'CPPFLAGS' +
+	if ${KERNONLY} && ! cppdefines ${RUMPKERN_CPPFLAGS}; then
+		appendmkconf 'Cmd' "${RUMPKERN_CPPFLAGS}" 'CPPFLAGS' +
 		appendmkconf 'Probe' "${RUMPKERN_UNDEF}" 'CPPFLAGS' +
 	else
 		appendmkconf 'Probe' "${RUMPKERN_UNDEF}" "RUMPKERN_UNDEF"
@@ -631,8 +642,8 @@ EOF
 	exec 3>&1 1>${BRTOOLDIR}/toolchain-conf.mk
 	printf 'BUILDRUMP_TOOL_CFLAGS=%s\n' "${EXTRA_CFLAGS}"
 	printf 'BUILDRUMP_TOOL_CXXFLAGS=%s\n' "${EXTRA_CFLAGS}"
-	printf 'BUILDRUMP_TOOL_CPPFLAGS=-D__NetBSD__ %s %s\n' \
-	    "${EXTRA_CPPFLAGS}" "${RUMPKERN_UNDEF}"
+	printf 'BUILDRUMP_TOOL_CPPFLAGS=%s %s %s\n' \
+	    "${RUMPKERN_CPPFLAGS}" "${EXTRA_CPPFLAGS}" "${RUMPKERN_UNDEF}"
 	exec 1>&3 3>&-
 
 	chkcrt begins
@@ -668,15 +679,6 @@ EOF
 		echo '.endif # PROG' >> "${MKCONF}"
 	fi
 
-	# skip the zlib tests run by "make tools", since we don't need zlib
-	# and it's only required by one tools autoconf script.  Of course,
-	# the fun bit is that autoconf wants to use -lz internally,
-	# so we provide some foo which macquerades as libz.a.
-	export ac_cv_header_zlib_h=yes
-	echo 'int gzdopen(int); int gzdopen(int v) { return 0; }' > fakezlib.c
-	${HOST_CC} -o libz.a -c fakezlib.c
-	rm -f fakezlib.c
-
 	# Run build.sh.  Use some defaults.
 	# The html pages would be nice, but result in too many broken
 	# links, since they assume the whole NetBSD man page set to be present.
@@ -694,8 +696,6 @@ EOF
 	#   b) set no MSI only when necessary
 	printf '#define NO_PCI_MSI_MSIX\n' > ${BRIMACROS}.building
 
-	unset ac_cv_header_zlib_h
-
 	# tool build done.  flip mk.conf name so that it gets picked up
 	omkconf="${MKCONF}"
 	MKCONF="${mkconf_final}"
@@ -708,113 +708,6 @@ EOF
 	if ! diff "${BRIMACROS}" "${BRIMACROS}.building" > /dev/null 2>&1; then
 		mv "${BRIMACROS}.building" "${BRIMACROS}"
 	fi
-}
-
-makelinuxtools ()
-{
-
-	checkcheckout
-
-	probeld
-	probenm
-	probear
-	${HAVECXX} && probecxx
-
-	cd ${OBJDIR}
-
-	# Create mk.conf.  Create it under a temp name first so as to
-	# not affect the tool build with its contents
-	MKCONF="${BRTOOLDIR}/mk.conf.building"
-	> "${MKCONF}"
-	mkconf_final="${BRTOOLDIR}/mk.conf"
-	> ${mkconf_final}
-
-	${KERNONLY} || probe_rumpuserbits
-
-	checkcompiler
-
-	#
-	# Create external toolchain wrappers.
-	mkdir -p ${BRTOOLDIR}/bin || die "cannot create ${BRTOOLDIR}/bin"
-	for x in CC AR NM OBJCOPY; do
-		maketoolwrapper true $x
-	done
-	for x in AS CXX LD OBJDUMP RANLIB READELF SIZE STRINGS STRIP; do
-		maketoolwrapper false $x
-	done
-
-	# create a cpp wrapper, but run it via cc -E
-	if [ "${CC_FLAVOR}" = 'clang' ]; then
-		cppname=clang-cpp
-	else
-		cppname=cpp
-	fi
-	tname=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--${RUMPKERNEL}${TOOLABI}-${cppname}
-	printf '#!/bin/sh\n\nexec %s -E -x c "${@}"\n' ${CC} > ${tname}
-	chmod 755 ${tname}
-
-	for x in 1 2 3; do
-		! ${HOST_CC} -o ${BRTOOLDIR}/bin/brprintmetainfo \
-		    -DSTATHACK${x} ${BRDIR}/brlib/utils/printmetainfo.c \
-		    >/dev/null 2>&1 || break
-	done
-	[ -x ${BRTOOLDIR}/bin/brprintmetainfo ] \
-	    || die failed to build brprintmetainfo
-
-	${HOST_CC} -o ${BRTOOLDIR}/bin/brrealpath \
-	    ${BRDIR}/brlib/utils/realpath.c || die failed to build brrealpath
-
-	printoneconfig 'Cmd' "SRCDIR" "${SRCDIR}"
-	printoneconfig 'Cmd' "DESTDIR" "${DESTDIR}"
-	printoneconfig 'Cmd' "OBJDIR" "${OBJDIR}"
-	printoneconfig 'Cmd' "BRTOOLDIR" "${BRTOOLDIR}"
-
-	appendmkconf 'Cmd' "${RUMP_DIAGNOSTIC:-}" "RUMP_DIAGNOSTIC"
-	appendmkconf 'Cmd' "${RUMP_DEBUG:-}" "RUMP_DEBUG"
-	appendmkconf 'Cmd' "${RUMP_LOCKDEBUG:-}" "RUMP_LOCKDEBUG"
-	appendmkconf 'Cmd' "${DBG:-}" "DBG"
-	printoneconfig 'Cmd' "make -j[num]" "-j ${JNUM}"
-
-	if ${KERNONLY}; then
-		appendmkconf Cmd yes RUMPKERN_ONLY
-	fi
-
-	if ${KERNONLY} && ! cppdefines __NetBSD__; then
-		appendmkconf 'Cmd' '-D__NetBSD__' 'CPPFLAGS' +
-		appendmkconf 'Probe' "${RUMPKERN_UNDEF}" 'CPPFLAGS' +
-	else
-		appendmkconf 'Probe' "${RUMPKERN_UNDEF}" "RUMPKERN_UNDEF"
-	fi
-	appendmkconf 'Probe' "${RUMP_CURLWP:-}" 'RUMP_CURLWP' ?
-	appendmkconf 'Probe' "${CTASSERT:-}" "CPPFLAGS" +
-	appendmkconf 'Probe' "${RUMP_VIRTIF:-}" "RUMP_VIRTIF"
-	appendmkconf 'Probe' "${EXTRA_CWARNFLAGS}" "CWARNFLAGS" +
-	appendmkconf 'Probe' "${EXTRA_LDFLAGS}" "LDFLAGS" +
-	appendmkconf 'Probe' "${EXTRA_CPPFLAGS}" "CPPFLAGS" +
-	appendmkconf 'Probe' "${EXTRA_CFLAGS}" "BUILDRUMP_CFLAGS"
-	appendmkconf 'Probe' "${EXTRA_AFLAGS}" "BUILDRUMP_AFLAGS"
-	_tmpvar=
-	for x in ${EXTRA_RUMPUSER} ${EXTRA_RUMPCOMMON}; do
-		appendvar _tmpvar "${x#-l}"
-	done
-	appendmkconf 'Probe' "${_tmpvar}" "RUMPUSER_EXTERNAL_DPLIBS" +
-	_tmpvar=
-	for x in ${EXTRA_RUMPCLIENT} ${EXTRA_RUMPCOMMON}; do
-		appendvar _tmpvar "${x#-l}"
-	done
-	appendmkconf 'Probe' "${_tmpvar}" "RUMPCLIENT_EXTERNAL_DPLIBS" +
-	appendmkconf 'Probe' "${LDSCRIPT:-}" "RUMP_LDSCRIPT"
-	appendmkconf 'Probe' "${SHLIB_MKMAP:-}" 'SHLIB_MKMAP'
-	appendmkconf 'Probe' "${SHLIB_WARNTEXTREL:-}" "SHLIB_WARNTEXTREL"
-	appendmkconf 'Probe' "${MKSTATICLIB:-}"  "MKSTATICLIB"
-	appendmkconf 'Probe' "${MKPIC:-}"  "MKPIC"
-	appendmkconf 'Probe' "${MKSOFTFLOAT:-}"  "MKSOFTFLOAT"
-	appendmkconf 'Probe' $(${HAVECXX} && echo yes || echo no) _BUILDRUMP_CXX
-
-	printoneconfig 'Mode' "${TARBALLMODE}" 'yes'
-
-	CC=${BRTOOLDIR}/bin/${MACHINE_GNU_ARCH}--${RUMPKERNEL}${TOOLABI}-gcc
-
 }
 
 makemake ()
@@ -838,6 +731,8 @@ makemake ()
 	    -V MKLINT=no \
 	    -V MKZFS=no \
 	    -V MKDYNAMICROOT=no \
+	    -V MKDTRACE=no -V MKCTF=no \
+	    -V MKPIE=no \
 	    -V TOPRUMP="${SRCDIR}/sys/rump" \
 	    -V MAKECONF="${mkconf_final}" \
 	    -V MAKEOBJDIR="\${.CURDIR:C,^(${SRCDIR}|${BRDIR}),${OBJDIR},}" \
@@ -845,159 +740,6 @@ makemake ()
 	    ${BUILDSH_VARGS} \
 	${cmd}
 	[ $? -ne 0 ] && die build.sh ${cmd} failed
-}
-
-makebuild ()
-{
-
-	checkcheckout
-
-	# ensure we're in SRCDIR, in case "tools" wasn't run
-	cd ${SRCDIR}
-
-	targets="obj includes dependall install"
-
-	#
-	# Building takes 4 passes, just like when
-	# building NetBSD the regular way.  The passes are:
-	# 1) obj
-	# 2) includes
-	# 3) dependall
-	# 4) install
-	#
-
-	DIRS_first='lib/librumpuser'
-	DIRS_second='lib/librump'
-	DIRS_third="lib/librumpdev lib/librumpnet lib/librumpvfs
-	    sys/rump/dev sys/rump/fs sys/rump/kern sys/rump/net
-	    sys/rump/include ${BRDIR}/brlib"
-
-	# sys/rump/share was added to ${SRCDIR} 11/2014
-	[ -d ${SRCDIR}/sys/rump/share ] \
-	    && appendvar DIRS_second ${SRCDIR}/sys/rump/share
-
-	if [ ${MACHINE} = "i386" -o ${MACHINE} = "amd64" \
-	     -o ${MACHINE#evbearm} != ${MACHINE} \
-	     -o ${MACHINE#evbppc} != ${MACHINE} ]; then
-		DIRS_emul=sys/rump/kern/lib/libsys_linux
-	fi
-	${SYS_SUNOS} && appendvar DIRS_emul sys/rump/kern/lib/libsys_sunos
-	if ${HIJACK}; then
-		DIRS_final="lib/librumphijack"
-	else
-		DIRS_final=
-	fi
-
-	DIRS_third="${DIRS_third} ${DIRS_emul}"
-
-	if ${KERNONLY}; then
-		mkmakefile ${OBJDIR}/Makefile.all \
-		    sys/rump ${DIRS_emul} ${BRDIR}/brlib
-	else
-		DIRS_third="lib/librumpclient ${DIRS_third}"
-
-		mkmakefile ${OBJDIR}/Makefile.first ${DIRS_first}
-		mkmakefile ${OBJDIR}/Makefile.second ${DIRS_second}
-		mkmakefile ${OBJDIR}/Makefile.third ${DIRS_third}
-		mkmakefile ${OBJDIR}/Makefile.final ${DIRS_final}
-		mkmakefile ${OBJDIR}/Makefile.all \
-		    ${DIRS_first} ${DIRS_second} ${DIRS_third} ${DIRS_final}
-	fi
-
-	# try to minimize the amount of domake invocations.  this makes a
-	# difference especially on systems with a large number of slow cores
-	for target in ${targets}; do
-		if [ ${target} = "dependall" ] && ! ${KERNONLY}; then
-			domake ${OBJDIR}/Makefile.first ${target}
-			domake ${OBJDIR}/Makefile.second ${target}
-			domake ${OBJDIR}/Makefile.third ${target}
-			domake ${OBJDIR}/Makefile.final ${target}
-		else
-			domake ${OBJDIR}/Makefile.all ${target}
-		fi
-	done
-
-	if ! ${KERNONLY}; then
-		mkmakefile ${OBJDIR}/Makefile.utils \
-		    usr.bin/rump_server usr.bin/rump_allserver \
-		    usr.bin/rump_wmd
-		for target in ${targets}; do
-			domake ${OBJDIR}/Makefile.utils ${target}
-		done
-	fi
-}
-
-makelinuxbuild ()
-{
-	echo "=== Linux build LINUX_SRCDIR=${LINUX_SRCDIR} ==="
-	cd ${LINUX_SRCDIR}
-	VERBOSE="V=0"
-	if [ ${NOISE} -gt 1 ] ; then
-		VERBOSE="V=1"
-	fi
-
-	CROSS=$(${CC} -dumpmachine)
-	if [ ${CROSS} = "$(gcc -dumpmachine)" ]
-	then
-		CROSS=
-	else    
-		CROSS=${CROSS}-
-	fi
-
-	set -e
-	set -x
-	cd tools/lkl
-	mkdir -p ${OBJDIR}/lkl-linux/tools/lkl
-	make clean O=${OBJDIR}/lkl-linux/
-	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ -j ${JNUM} ${VERBOSE} O=${OBJDIR}/lkl-linux/
-	cd ../../
-	make CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ headers_install ARCH=lkl O=${DESTDIR}/
-	set +x
-}
-
-linuxtest ()
-{
-	printf 'Linux libos test ... '
-	make -C ${LINUX_SRCDIR}/tools/lkl test || die Linux libos failed
-}
-
-makeinstall ()
-{
-
-	if ! ${BUILDLINUX}; then
-		# ensure we run this in a directory that does not have a
-		# Makefile that could confuse rumpmake
-		stage=$(cd ${BRTOOLDIR} && ${RUMPMAKE} -V '${BUILDRUMP_STAGE}')
-		(cd ${stage}/usr ; tar -cf - .) | (cd ${DESTDIR} ; tar -xf -)
-	else
-		make install CROSS_COMPILE=${CROSS} RUMP_PREFIX=${OBJDIR}/../librumpuser/ DESTDIR=${DESTDIR} -C ${LINUX_SRCDIR}/tools/lkl/ O=${OBJDIR}/lkl-linux/
-	fi
-
-}
-
-#
-# install kernel headers.
-# Note: Do _NOT_ do this unless you want to install a
-#       full rump kernel application stack
-#  
-makekernelheaders ()
-{
-
-	dodirs=$(cd ${SRCDIR}/sys && \
-	    ${RUMPMAKE} -V '${SUBDIR:Narch:Nmodules:Ncompat:Nnetnatm}' includes)
-	# missing some architectures
-	appendvar dodirs arch/amd64/include arch/i386/include arch/x86/include
-	appendvar dodirs arch/arm/include arch/arm/include/arm32
-	appendvar dodirs arch/evbarm64/include arch/aarch64/include
-	appendvar dodirs arch/evbppc/include arch/powerpc/include
-	appendvar dodirs arch/evbmips/include arch/mips/include
-	appendvar dodirs arch/riscv/include
-	for dir in ${dodirs}; do
-		(cd ${SRCDIR}/sys/${dir} && ${RUMPMAKE} obj)
-		(cd ${SRCDIR}/sys/${dir} && ${RUMPMAKE} includes)
-	done
-	# create machine symlink
-	(cd ${SRCDIR}/sys/arch && ${RUMPMAKE} NOSUBDIR=1 includes)
 }
 
 settool ()
@@ -1079,7 +821,6 @@ evaltoolchain ()
 	# See if we have a c++ compiler.  If CXX is not set,
 	# try to guess what it could be.  In the latter case, do
 	# not treat a missing c++ compiler as an error.
-	: ${CXX:=g++}
 	if [ -n "${CXX:-}" ]; then
 		type ${CXX} > /dev/null 2>&1 \
 		    || die \$CXX set \(${CXX}\) but not found
@@ -1169,7 +910,9 @@ evaltoolchain ()
 
 	case ${CC_TARGET} in
 	*-linux*)
-		RUMPKERN_UNDEF='-Ulinux -U__linux -U__linux__ -U__gnu_linux__'
+		if [ ${RUMPKERNEL} != "linux" ]; then
+			RUMPKERN_UNDEF='-Ulinux -U__linux -U__linux__ -U__gnu_linux__'
+		fi
 		cppdefines _BIG_ENDIAN \
 		    && appendvar RUMPKERN_UNDEF -U_BIG_ENDIAN
 		cppdefines _LITTLE_ENDIAN \
@@ -1486,12 +1229,10 @@ parseargs ()
 	NOISE=2
 	debugginess=0
 	KERNONLY=false
-	BUILDLINUX=false
 	RUMPKERNEL=netbsd
 	OBJDIR=./obj
 	DESTDIR=./rump
 	SRCDIR=./src
-	LINUX_SRCDIR=./lkl-linux
 	JNUM=4
 
 	while getopts 'd:DhHj:kl:o:qrs:T:V:F:' opt; do
@@ -1556,11 +1297,7 @@ parseargs ()
 			KERNONLY=true
 			;;
 		l)
-			BUILDLINUX=true
-			RUMPKERNEL=linux
-			if [ ! -z ${OPTARG} ]; then
-				LINUX_SRCDIR=${OPTARG}
-			fi
+			RUMPKERNEL=${OPTARG}
 			;;
 		o)
 			OBJDIR=${OPTARG}
@@ -1594,6 +1331,14 @@ parseargs ()
 	done
 	shift $((${OPTIND} - 1))
 
+	# load rump kernel specific scripts
+	if [ ${RUMPKERNEL} != "netbsd" -a ${RUMPKERNEL} != "linux" ]; then
+	    echo '>> ERROR:'
+	    echo '>> -l option (RUMPKERNEL) must be netbsd or linux'
+	    exit 1
+	fi
+	. ${BRDIR}/${RUMPKERNEL}.sh
+
 	DBG="${F_DBG:-${DBG}}"
 
 	BEQUIET="-N${NOISE}"
@@ -1603,11 +1348,8 @@ parseargs ()
 	# Determine what which parts we should execute.
 	#
 	allcmds='checkout checkoutcvs checkoutgit probe tools build install
-	    tests fullbuild kernelheaders linuxbuild linuxtools'
+	    tests fullbuild kernelheaders'
 	fullbuildcmds="tools build install"
-	if ${BUILDLINUX} ; then
-	    fullbuildcmds="${fullbuildcmds} linuxbuild"
-	fi
 
 	# for compat, so that previously valid invocations don't
 	# produce an error
@@ -1654,7 +1396,7 @@ parseargs ()
 		docheckout=true
 		checkoutstyle=cvs
 	fi
-	if ${docheckout} && ${BUILDLINUX} ; then
+	if ${docheckout} && ${RUMPKERNEL} = "linux" ; then
 		docheckout=true
 		checkoutstyle=linux-git
 	fi
@@ -1692,9 +1434,6 @@ resolvepaths ()
 
 	abspath BRTOOLDIR
 	abspath SRCDIR
-	if [ -d ${LINUX_SRCDIR} ] ; then
-	    abspath LINUX_SRCDIR
-	fi
 
 	RUMPMAKE="${BRTOOLDIR}/bin/brrumpmake"
 	BRIMACROS="${BRTOOLDIR}/include/opt_buildrump.h"
@@ -1725,40 +1464,7 @@ resolvepaths ()
 	done
 }
 
-# create the makefiles used for building
-mkmakefile ()
-{
 
-	makefile=$1
-	shift
-	exec 3>&1 1>${makefile}
-	printf '# GENERATED FILE, MIGHT I SUGGEST NOT EDITING?\n'
-	printf 'SUBDIR='
-	for dir in $*; do
-		case ${dir} in
-		/*)
-			printf ' %s' ${dir}
-			;;
-		*)
-			printf ' %s' ${SRCDIR}/${dir}
-			;;
-		esac
-	done
-
-	printf '\n.include <bsd.subdir.mk>\n'
-	exec 1>&3 3>&-
-}
-
-domake ()
-{
-
-	mkfile=${1}; shift
-	mktarget=${1}; shift
-
-	[ ! -x ${RUMPMAKE} ] && die "No rumpmake (${RUMPMAKE}). Forgot tools?"
-	${RUMPMAKE} $* -j ${JNUM} -f ${mkfile} ${mktarget}
-	[ $? -eq 0 ] || die "make $mkfile $mktarget"
-}
 
 ###
 ###
@@ -1777,10 +1483,10 @@ done
 
 parseargs "$@"
 
-${docheckout} && { ${BRDIR}/checkout.sh ${checkoutstyle} ${SRCDIR} ${LINUX_SRCDIR} || exit 1; }
+${docheckout} && { ${BRDIR}/checkout.sh ${checkoutstyle} ${SRCDIR} || exit 1; }
 
 if ${doprobe} || ${dotools} || ${dobuild} || ${dokernelheaders} \
-    || ${doinstall} || ${dotests} || ${dolinuxtools} || ${dolinuxbuild}; then
+    || ${doinstall} || ${dotests}; then
 	${doprobe} || resolvepaths
 
 	evaltoolchain
@@ -1788,29 +1494,14 @@ if ${doprobe} || ${dotools} || ${dobuild} || ${dokernelheaders} \
 
 	${KERNONLY} || evalplatform
 
-	export BUILDLINUX
 	export RUMPKERNEL
-	export LINUX_SRCDIR
 	${doprobe} && writeproberes
 	${dotools} && maketools
-	${dolinuxtools} && makelinuxtools
 	${dobuild} && makebuild
 	${dokernelheaders} && makekernelheaders
-	${dolinuxbuild} && makelinuxbuild
 	${doinstall} && makeinstall
 
-	if ${dotests}; then
-		if ${KERNONLY}; then
-			diagout 'Kernel-only; skipping tests (no hypervisor)'
-		else
-			. ${BRDIR}/tests/testrump.sh
-			alltests
-		fi
-
-		if ${BUILDLINUX}; then
-			linuxtest
-		fi
-	fi
+	${dotests} && maketests
 fi
 
 diagout buildrump.sh ran successfully

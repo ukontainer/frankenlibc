@@ -15,7 +15,7 @@ rumpkernel_buildrump()
 	-F CWARNFLAGS="${EXTRA_CWARNFLAGS}" \
 	-F DBG="${F_DBG}" \
 	${EXTRAFLAGS} \
-	-l ${LKLSRC} linuxtools linuxbuild install
+	-l linux tools build install
 
 }
 
