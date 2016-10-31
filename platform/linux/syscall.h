@@ -4,6 +4,7 @@
 #include <sys/syscall.h>
 #include "syscall_arch.h"
 
+#define __syscall_ret(v) __platform___syscall_ret(v)
 long __syscall_ret(unsigned long);
 void *__vdsosym(const char *, const char *);
 
