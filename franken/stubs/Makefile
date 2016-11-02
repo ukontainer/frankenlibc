@@ -11,6 +11,7 @@ OBJ+=$(OBJDIR)/stub_madvise.o $(OBJDIR)/stub___minbrk.o
 OBJ+=$(OBJDIR)/stub_minherit.o
 OBJ+=$(OBJDIR)/stub_mlock.o $(OBJDIR)/stub_mlockall.o
 OBJ+=$(OBJDIR)/stub_mmap.o $(OBJDIR)/stub__mmap.o
+OBJ+=$(OBJDIR)/stub_munmap.o $(OBJDIR)/stub__munmap.o
 OBJ+=$(OBJDIR)/stub___msgctl50.o $(OBJDIR)/stub___msync13.o
 OBJ+=$(OBJDIR)/stub___mq_timedreceive50.o $(OBJDIR)/stub___mq_timedsend50.o
 OBJ+=$(OBJDIR)/stub_munlock.o $(OBJDIR)/stub_munlockall.o
@@ -102,6 +103,14 @@ $(OBJDIR)/stub_mmap.o:			mmap.c
 $(OBJDIR)/stub__mmap.o:			_mmap.c
 					@mkdir -p $(OBJDIR)
 					$(COMPILE.c) -o $@ _mmap.c
+
+$(OBJDIR)/stub_munmap.o:		munmap.c
+					@mkdir -p $(OBJDIR)
+					$(COMPILE.c) -o $@ munmap.c
+
+$(OBJDIR)/stub__munmap.o:		_munmap.c
+					@mkdir -p $(OBJDIR)
+					$(COMPILE.c) -o $@ _munmap.c
 
 $(OBJDIR)/stub___msgctl50.o:		__msgctl50.c
 					@mkdir -p $(OBJDIR)
