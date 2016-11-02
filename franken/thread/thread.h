@@ -76,6 +76,7 @@
 
 struct thread;
 
+struct thread *get_current(void);
 void init_sched(const struct rumpuser_hyperup *);
 void schedule(void);
 void *curlwp(void);
