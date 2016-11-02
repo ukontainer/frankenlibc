@@ -241,6 +241,25 @@ rumpuser_thread_join(void *p)
         return 0;
 }
 
+void *
+rumpuser_thread_self(void)
+{
+	return get_current();
+}
+
+void *
+rumpuser_thread_get_cookie(void)
+{
+
+	return get_cookie();
+}
+
+void
+rumpuser_thread_set_cookie(void *thread, void *cookie)
+{
+	set_cookie(thread, cookie);
+}
+
 /* mtx */
 
 void

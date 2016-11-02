@@ -143,7 +143,7 @@ static void set_sched_hook(void (*)(void *, void *));
 static int wait(struct waithead *, int64_t);
 static void wakeup_one(struct waithead *);
 static void wakeup_all(struct waithead *);
-static struct thread *get_current(void);
+struct thread *get_current(void);
 
 static void printk(const char *);
 
@@ -155,7 +155,7 @@ printk(const char *msg)
 	ret = write(2, msg, strlen(msg));
 }
 
-static struct thread *
+struct thread *
 get_current(void)
 {
 
@@ -503,6 +503,22 @@ init_mainthread(void *cookie)
 
 	current_thread->cookie = cookie;
 	return current_thread;
+}
+
+void *
+get_cookie(void)
+{
+
+	return current_thread->cookie;
+}
+
+void
+set_cookie(struct thread *thread, void *cookie)
+{
+	if (!thread)
+		thread = current_thread;
+
+	thread->cookie = cookie;
 }
 
 #define WAIT_NOTIMEOUT -1
