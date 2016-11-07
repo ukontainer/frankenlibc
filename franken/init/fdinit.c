@@ -334,7 +334,7 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 	}
 	ret = lkl_sys_mkdir("/dev/", 0700);
 	if (ret < 0) {
-		printf("can't mkdir /dev to %s: %s\n",
+		printf("can't mkdir /dev to: %s\n",
 		       lkl_strerror(ret));
 	}
 	ret = lkl_sys_mknod("/dev/null", LKL_S_IFCHR | 0600, LKL_MKDEV(1, 3));
@@ -344,6 +344,11 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 	}
 
 	/* tmpfs */
+	ret = lkl_sys_mkdir("/tmp/", 0700);
+	if (ret < 0) {
+		printf("can't mkdir /tmp to: %s\n",
+		       lkl_strerror(ret));
+	}
 	ret = lkl_sys_mount(NULL, "/tmp", (char*)"tmpfs", 0, NULL);
 	if (ret) {
 		printf("can't mount /tmp: %s\n",
