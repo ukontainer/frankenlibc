@@ -1051,7 +1051,7 @@ vtw_next_port_v4(struct tcp_ports_iterator *it)
 			if (!(inuse & (1 << i)))
 				continue;
 
-			inuse &= ~0 << i;
+			inuse &= ~0UL << i;
 
 			if (i < it->slot_idx)
 				continue;
@@ -1165,7 +1165,7 @@ vtw_next_port_v6(struct tcp_ports_iterator *it)
 			if (!(inuse & (1 << i)))
 				continue;
 
-			inuse &= ~0 << i;
+			inuse &= ~0UL << i;
 
 			if (i < it->slot_idx)
 				continue;
