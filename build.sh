@@ -465,9 +465,12 @@ mkdir -p ${RUMPOBJ}/explode/platform
 
 	cd ${RUMPOBJ}/explode
 	${AR-ar} cr libc.a rumpkernel/rumpkernel.o rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
-	${CC-cc} ${LIBCSO_FLAGS} -nostdlib -shared -Wl,-Bsymbolic-functions \
-		 -o libc.so -Wl,-soname,libc.so rumpkernel/rumpkernel.o \
-		 rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o -lgcc
+	if [ ${OS} = "linux" ]
+	then
+		${CC-cc} ${LIBCSO_FLAGS} -nostdlib -shared -Wl,-Bsymbolic-functions \
+			 -o libc.so -Wl,-soname,libc.so rumpkernel/rumpkernel.o \
+			 rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o -lgcc
+	fi
 )
 
 # install to OUTDIR
@@ -480,7 +483,9 @@ rumpkernel_install_extra_libs
 ${INSTALL-install} ${RUMP}/lib/*.o ${OUTDIR}/lib
 [ -f ${RUMP}/lib/libg.a ] && ${INSTALL-install} ${RUMP}/lib/libg.a ${OUTDIR}/lib
 ${INSTALL-install} ${RUMPOBJ}/explode/libc.a ${OUTDIR}/lib
+if [ ${OS} = "linux" ]; then
 ${INSTALL-install} ${RUMPOBJ}/explode/libc.so ${OUTDIR}/lib
+fi
 
 # create toolchain wrappers
 # select these based on compiler defs

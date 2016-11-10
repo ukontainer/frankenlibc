@@ -69,7 +69,7 @@ rumpkernel_build_extra()
 		${MAKE} ${STDJ} -C libvirtif
 
 	cd libtc
-	${RUMPMAKE}
+	CFLAGS="${EXTRA_CFLAGS} ${DBG_F}" ${RUMPMAKE}
 	cp libfranken_tc.a ${RUMP}/lib/
 	${RUMPMAKE} clean
 )
