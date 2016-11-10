@@ -87,6 +87,8 @@ struct thread *create_thread(const char *, void *,
 void join_thread(struct thread *);
 int clock_sleep(clockid_t, int64_t, long);
 void wake(struct thread *);
+void *get_cookie(void);
+void set_cookie(struct thread *thread, void *cookie);
 
 struct rumpuser_mtx;
 #define MTX_SPIN       0x01
