@@ -288,7 +288,7 @@ MAKETOOLS="${MAKETOOLS-yes}"
 
 rm -rf ${OUTDIR}
 
-FRANKEN_CFLAGS="-std=c99 -Wall -Wextra -Wno-missing-braces -Wno-unused-parameter -Wno-missing-field-initializers"
+FRANKEN_CFLAGS="-std=c99 -fPIC -Wall -Wextra -Wno-missing-braces -Wno-unused-parameter -Wno-missing-field-initializers"
 
 if [ "${HOST}" = "Linux" ]; then appendvar FRANKEN_CFLAGS "-D_GNU_SOURCE"; fi
 
@@ -374,6 +374,7 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	CPPFLAGS="${EXTRA_CPPFLAGS} ${FRANKEN_FLAGS}" \
 	RUMPOBJ="${RUMPOBJ}" \
 	RUMP="${RUMP}" \
+	RUMP_KERNEL="${RUMP_KERNEL}" \
 	${MAKE} ${STDJ} -C franken
 
 CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
@@ -457,13 +458,16 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	do
 		${AR-ar} x $f
 	done
-	${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -Wl,-r *.o -o rumpkernel.o
+	${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -fPIC -Wl,-r *.o -o rumpkernel.o
 
 	cd ${RUMPOBJ}/explode/rumpuser
 	${AR-ar} x ${RUMP}/lib/librumpuser.a
 
 	cd ${RUMPOBJ}/explode
 	${AR-ar} cr libc.a rumpkernel/rumpkernel.o rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
+	${CC-cc} ${LIBCSO_FLAGS} -nostdlib -shared -Wl,-Bsymbolic-functions \
+		 -o libc.so -Wl,-soname,libc.so rumpkernel/rumpkernel.o \
+		 rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o -lgcc -lgcc_eh
 )
 
 # install to OUTDIR
@@ -476,6 +480,7 @@ rumpkernel_install_extra_libs
 ${INSTALL-install} ${RUMP}/lib/*.o ${OUTDIR}/lib
 [ -f ${RUMP}/lib/libg.a ] && ${INSTALL-install} ${RUMP}/lib/libg.a ${OUTDIR}/lib
 ${INSTALL-install} ${RUMPOBJ}/explode/libc.a ${OUTDIR}/lib
+${INSTALL-install} ${RUMPOBJ}/explode/libc.so ${OUTDIR}/lib
 
 # create toolchain wrappers
 # select these based on compiler defs
@@ -491,14 +496,14 @@ then
 	LIBGCCDIR="$(dirname ${LIBGCC})"
 	ln -s ${LIBGCC} ${OUTDIR}/lib/
 	ln -s ${LIBGCCDIR}/libgcc_eh.a ${OUTDIR}/lib/
-	if ${CC-cc} -I${OUTDIR}/include --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} tests/hello.c -o /dev/null 2>/dev/null
+	if ${CC-cc} -I${OUTDIR}/include --sysroot=${OUTDIR} ${COMPILER_FLAGS} tests/hello.c -o /dev/null 2>/dev/null
 	then
 		# can use sysroot with clang
-		printf "#!/bin/sh\n\nexec ${CC-cc} --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
+		printf "#!/bin/sh\n\nexec ${CC-cc} --sysroot=${OUTDIR} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
 	else
 		# sysroot does not work with linker eg NetBSD
 		appendvar COMPILER_FLAGS "-I${OUTDIR}/include -L${OUTDIR}/lib -B${OUTDIR}/lib"
-		printf "#!/bin/sh\n\nexec ${CC-cc} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
+		printf "#!/bin/sh\n\nexec ${CC-cc} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
 	fi
 	COMPILER="${TOOL_PREFIX}-clang"
 	( cd ${BINDIR}
@@ -529,7 +534,7 @@ else
 		-e "s#@ENDFILE@#${ENDFILE}#g" \
 		-e "s/--sysroot=[^ ]*//" \
 		> ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec
-	printf "#!/bin/sh\n\nexec ${CC-cc} -specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec ${COMPILER_FLAGS} -static -nostdinc -isystem ${OUTDIR}/include \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-gcc
+	printf "#!/bin/sh\n\nexec ${CC-cc} -specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec ${COMPILER_FLAGS} -nostdinc -isystem ${OUTDIR}/include \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-gcc
 	COMPILER="${TOOL_PREFIX}-gcc"
 	( cd ${BINDIR}
 	  ln -s ${COMPILER} ${TOOL_PREFIX}-cc
