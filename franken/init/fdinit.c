@@ -333,19 +333,19 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 		       lkl_strerror(ret));
 	}
 	ret = lkl_sys_mkdir("/dev/", 0700);
-	if (ret < 0) {
+	if (ret < 0 && ret != -EEXIST) {
 		printf("can't mkdir /dev to: %s\n",
 		       lkl_strerror(ret));
 	}
 	ret = lkl_sys_mknod("/dev/null", LKL_S_IFCHR | 0600, LKL_MKDEV(1, 3));
-	if (ret) {
+	if (ret < 0 && ret != -EEXIST) {
 		printf("can't mknod /dev/null to: %s\n",
 		       lkl_strerror(ret));
 	}
 
 	/* tmpfs */
 	ret = lkl_sys_mkdir("/tmp/", 0700);
-	if (ret < 0) {
+	if (ret < 0 && ret != -EEXIST) {
 		printf("can't mkdir /tmp to: %s\n",
 		       lkl_strerror(ret));
 	}
