@@ -10,11 +10,6 @@ static char __core[CORESIZE];
 static uintptr_t core_base = (uintptr_t) &__core;
 static uintptr_t core_top = (uintptr_t) &__core[CORESIZE];
 
-/* FIXME */
-#define	MAP_ALIGNED(n)		((n) << MAP_ALIGNMENT_SHIFT)
-#define	MAP_ALIGNMENT_SHIFT	24
-#define	MAP_ALIGNMENT_MASK	MAP_ALIGNED(0xff)
-
 void *
 mmap(void *addr, size_t length, int prot, int nflags, int fd, off_t offset)
 {
