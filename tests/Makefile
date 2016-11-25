@@ -10,13 +10,12 @@ CFLAGS+=-g
 
 DEPS=$(LIBDIR)/libc.a
 
-OBJ=$(OBJDIR)/hello $(OBJDIR)/ctor $(OBJDIR)/cat
+OBJ=$(OBJDIR)/hello $(OBJDIR)/ctor $(OBJDIR)/cat #$(OBJDIR)/hello-pthread
 
 default:		$(OBJ)
 
 run-simple:		$(OBJ)
 			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/hello
-			${REXEC} $(OBJDIR)/ctor
 			echo frankenlibc | ${REXEC} $(OBJDIR)/cat
 
 run:			$(OBJ)
@@ -40,6 +39,11 @@ $(OBJDIR)/hello:	hello.c $(DEPS)
 			@mkdir -p $(OBJDIR)
 			${CC} ${CFLAGS} ${LDFLAGS} -o $@ hello.c
 			${CC} ${CFLAGS} -Wl,-rpath=$(LIBDIR)/ -o $@-dl hello.c
+
+$(OBJDIR)/hello-pthread: hello-pthread.c $(DEPS)
+			@mkdir -p $(OBJDIR)
+			${CC} ${CFLAGS} ${LDFLAGS} -o $@ hello-pthread.c
+			${CC} ${CFLAGS} -Wl,-rpath=$(LIBDIR)/ -o $@-dl hello-pthread.c
 
 $(OBJDIR)/cat:		cat.c $(DEPS)
 			@mkdir -p $(OBJDIR)
