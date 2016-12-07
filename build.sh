@@ -451,7 +451,7 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	${AR-ar} x ${RUMP}/lib/libplatform.a
 	for f in *.o
 	do
-		[ -f ../${LIBC_DIR}/$f ] && mv $f platform_$f
+		[ -f ../libc/$f ] && mv $f platform_$f
 	done
 
 	cd ${RUMPOBJ}/explode/rumpkernel
@@ -466,12 +466,9 @@ mkdir -p ${RUMPOBJ}/explode/platform
 
 	cd ${RUMPOBJ}/explode
 	${AR-ar} cr libc.a rumpkernel/rumpkernel.o rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
-	if [ ${OS} = "linux" ]
-	then
-		${CC-cc} ${LIBCSO_FLAGS} -nostdlib -shared -Wl,-Bsymbolic-functions \
-			 -o libc.so -Wl,-soname,libc.so rumpkernel/rumpkernel.o \
-			 rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o -lgcc
-	fi
+	${CC-cc} ${LIBCSO_FLAGS} -nostdlib -shared -Wl,-Bsymbolic-functions \
+		 -o libc.so -Wl,-soname,libc.so rumpkernel/rumpkernel.o \
+		 rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o -lgcc
 )
 
 # install to OUTDIR

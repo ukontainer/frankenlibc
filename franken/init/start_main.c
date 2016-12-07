@@ -80,13 +80,13 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 
 
 	_init();
-#else
-	__init_libc(envp, argv[0]);
-#endif
-
 	a = (uintptr_t)&__init_array_start;
 	for (; a < (uintptr_t)&__init_array_end; a += sizeof(void(*)()))
 		(*(void (**)())a)();
+#else
+	__init_libc(envp, argv[0]);
+	__libc_start_init();
+#endif
 
 	/* see if we have any devices to init */
 	__franken_fdinit_create();
