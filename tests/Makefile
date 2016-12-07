@@ -33,12 +33,10 @@ endif
 $(OBJDIR)/ctor:		ctor.c $(DEPS)
 			@mkdir -p $(OBJDIR)
 			${CC} ${CFLAGS} ${LDFLAGS} -o $@ ctor.c
-			${CC} ${CFLAGS} -Wl,-rpath=$(LIBDIR)/ -o $@-dl ctor.c
 
 $(OBJDIR)/hello:	hello.c $(DEPS)
 			@mkdir -p $(OBJDIR)
 			${CC} ${CFLAGS} ${LDFLAGS} -o $@ hello.c
-			${CC} ${CFLAGS} -Wl,-rpath=$(LIBDIR)/ -o $@-dl hello.c
 
 $(OBJDIR)/hello-pthread: hello-pthread.c $(DEPS)
 			@mkdir -p $(OBJDIR)
@@ -48,7 +46,6 @@ $(OBJDIR)/hello-pthread: hello-pthread.c $(DEPS)
 $(OBJDIR)/cat:		cat.c $(DEPS)
 			@mkdir -p $(OBJDIR)
 			${CC} ${CFLAGS} ${LDFLAGS} -o $@ cat.c
-			${CC} ${CFLAGS} -Wl,-rpath=$(LIBDIR)/ -o $@-dl cat.c
 
 .PHONY:			test clean
 clean:		

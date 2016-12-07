@@ -2,8 +2,8 @@ COMPILE.c?=$(CC) -c $(CPPFLAGS) $(CFLAGS)
 COMPILE.S?=$(CC) -c $(CPPFLAGS) $(ASFLAGS)
 RUMPOBJ?=../../rumpobj
 OBJDIR=$(RUMPOBJ)/franken
-ifeq ($(RUMP_KERNEL),netbsd)
-OBJ=$(OBJDIR)/stub___cerror.o $(OBJDIR)/stub_execve.o
+OBJ=$(OBJDIR)/stub___cerror.o $(OBJDIR)/stub___errno.o
+OBJ+=$(OBJDIR)/stub_execve.o $(OBJDIR)/stub__Exit.o
 OBJ+=$(OBJDIR)/stub___fork.o $(OBJDIR)/stub__getcontext.o
 OBJ+=$(OBJDIR)/stub_getpriority.o $(OBJDIR)/stub___getrusage50.o
 OBJ+=$(OBJDIR)/stub_kill.o $(OBJDIR)/stub___lfs_segwait50.o
@@ -29,8 +29,6 @@ OBJ+=$(OBJDIR)/stub_swapctl.o $(OBJDIR)/stub_undelete.o
 OBJ+=$(OBJDIR)/stub__sys.o
 OBJ+=$(OBJDIR)/stub_uuidgen.o
 OBJ+=$(OBJDIR)/stub___vfork14.o $(OBJDIR)/stub___wait450.o
-endif
-OBJ+= $(OBJDIR)/stub___errno.o $(OBJDIR)/stub__Exit.o
 INCLUDES=-I../include -I../../platform/include
 CPPFLAGS+=-nostdinc $(INCLUDES)
 CFLAGS+=-fno-stack-protector

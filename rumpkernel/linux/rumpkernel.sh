@@ -30,7 +30,9 @@ rumpkernel_createuserlib()
 	LKL_HEADER="${RUMP}/"
 	CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
 	./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
-		    --disable-optimize --prefix=${RUMPOBJ}/musl CFLAGS=-fPIC
+		    --disable-optimize --prefix=${RUMPOBJ}/musl
+	# XXX: bug of musl Makefile ?
+	make obj/src/internal/version.h
 	make install
 	# install libraries
 	${INSTALL-install} -d ${OUTDIR}/lib
@@ -99,7 +101,7 @@ rumpkernel_build_test()
 	if [ ${OS} != "qemu-arm" ] ;
 	then
 		${MAKE} -C tests/iputils clean
-		CC="${BINDIR}/${COMPILER}" LDFLAGS=-static ${MAKE} -C tests/iputils ping ping6
+		CC="${BINDIR}/${COMPILER}" ${MAKE} -C tests/iputils ping ping6
 		cp tests/iputils/ping tests/iputils/ping6 ${OBJDIR}/
 		${MAKE} -C tests/iputils clean
 	fi
