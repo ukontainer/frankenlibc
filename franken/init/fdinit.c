@@ -226,7 +226,7 @@ unmount_atexit(void)
 	int ret __attribute__((__unused__));
 
 #ifdef MUSL_LIBC
-	ret = lkl_umount_dev("/etc", 0, 1000);
+	ret = lkl_umount_dev("/etc", 0, 0, 1000);
 #else
 	ret = rump___sysimpl_unmount("/", MNT_FORCE);
 #endif
@@ -316,10 +316,10 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 	int ret;
 	char mnt_point[32];
 
-	ret = lkl_mount_dev(disk_id, "ext4", 0, NULL, mnt_point,
+	ret = lkl_mount_dev(disk_id, 0, "ext4", 0, NULL, mnt_point,
 			    sizeof(mnt_point));
 	if (ret < 0) {
-		ret = lkl_mount_dev(disk_id, "iso9660", MS_RDONLY, NULL,
+		ret = lkl_mount_dev(disk_id, 0, "iso9660", MS_RDONLY, NULL,
 				    mnt_point, sizeof(mnt_point));
 	}
 	if (ret < 0)
