@@ -16,8 +16,13 @@ int poll(struct pollfd *fds, nfds_t n, int timeout)
 	if (timeout == 0)
 		return syscall(SYS_poll, fds, n, timeout);
 
-	sec = timeout / 1000;
-	nsec = (timeout % 1000) * (1000*1000UL);
+	if (timeout > 0) {
+		sec = timeout / 1000;
+		nsec = (timeout % 1000) * (1000*1000UL);
+	} else {
+		sec = 10;
+		nsec = 0;
+	}
 	clock_sleep(CLOCK_REALTIME, sec, nsec);
 
 	for (i = 0; i < __platform_npoll; i++) {
