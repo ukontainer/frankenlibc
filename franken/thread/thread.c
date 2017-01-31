@@ -184,7 +184,7 @@ now(void)
 
 	rv = clock_gettime(CLOCK_MONOTONIC, &ts);
 	assert(rv == 0);
-	return (ts.tv_sec * 1000LL) + (ts.tv_nsec / 1000000LL);
+	return (ts.tv_sec * 1000 * 1000 * 1000LL) + ts.tv_nsec;
 }
 
 void
@@ -218,8 +218,8 @@ schedule(void)
 		}
 		if (next)
 			break;
-		sl.tv_sec = (wakeup - tm) / 1000;
-		sl.tv_nsec = ((wakeup - tm) - 1000 * sl.tv_sec) * 1000000;
+		sl.tv_sec = (wakeup - tm) / (1000 * 1000 * 1000);
+		sl.tv_nsec = (wakeup - tm) - 1000 * 1000 * 1000 * sl.tv_sec;
 		clock_nanosleep(CLOCK_MONOTONIC, 0, &sl, NULL);
 	} while (1);
 
@@ -375,7 +375,7 @@ static void msleep(int64_t millisecs)
 {
 	struct thread *thread = get_current();
 
-	thread->wakeup_time = now() + millisecs;
+	thread->wakeup_time = now() + millisecs * 1000 * 1000UL;
 	clear_runnable(thread);
 	schedule();
 }
@@ -384,7 +384,25 @@ static void abssleep(int64_t millisecs)
 {
 	struct thread *thread = get_current();
 
-	thread->wakeup_time = millisecs;
+	thread->wakeup_time = millisecs * 1000 * 1000UL;
+	clear_runnable(thread);
+	schedule();
+}
+
+static void nsleep(int64_t nsec)
+{
+	struct thread *thread = get_current();
+
+	thread->wakeup_time = now() + nsec;
+	clear_runnable(thread);
+	schedule();
+}
+
+static void absnanosleep(int64_t nsec)
+{
+	struct thread *thread = get_current();
+
+	thread->wakeup_time = nsec;
 	clear_runnable(thread);
 	schedule();
 }
@@ -399,8 +417,8 @@ static int abssleep_real(int64_t millisecs)
 	int rv;
 
 	clock_gettime(CLOCK_REALTIME, &ts);
-	real_now = 1000*ts.tv_sec + ts.tv_nsec/(1000*1000);
-	thread->wakeup_time = now() + (millisecs - real_now);
+	real_now = 1000*1000*1000*ts.tv_sec + ts.tv_nsec;
+	thread->wakeup_time = now() + (1000*1000*millisecs - real_now);
 
 	clear_runnable(thread);
 	schedule();
@@ -414,18 +432,18 @@ static int abssleep_real(int64_t millisecs)
 int
 clock_sleep(clockid_t clk, int64_t sec, long nsec)
 {
-	int64_t msec;
+	int64_t nanosec;
 	int nlocks;
 
 	rumpkern_unsched(&nlocks, NULL);
 	switch (clk) {
 	case CLOCK_REALTIME:
-		msec = sec * 1000 + nsec / (1000*1000UL);
-		msleep(msec);
+		nanosec = sec * 1000 * 1000 * 1000UL + nsec;
+		nsleep(nanosec);
 		break;
 	case CLOCK_MONOTONIC:
-		msec = sec * 1000 + nsec / (1000*1000UL);
-		abssleep(msec);
+		nanosec = sec * 1000 * 1000 * 1000UL + nsec;
+		absnanosleep(nanosec);
 		break;
 	}
 	rumpkern_sched(nlocks, NULL);
@@ -524,18 +542,23 @@ set_cookie(struct thread *thread, void *cookie)
 #define WAIT_NOTIMEOUT -1
 
 static int
-wait(struct waithead *wh, time_t msec)
+wait(struct waithead *wh, time_t nsec)
 {
 	struct waiter w;
+
+	if (!nsec){
+		printk("wait with 0 nsec\n");
+		abort();
+	}
 
 	w.who = get_current();
 	TAILQ_INSERT_TAIL(wh, &w, entries);
 	w.onlist = 1;
 	block(w.who);
-	if (msec == WAIT_NOTIMEOUT)
+	if (nsec == WAIT_NOTIMEOUT)
 		w.who->wakeup_time = -1;
 	else
-		w.who->wakeup_time = now() + msec;
+		w.who->wakeup_time = now() + nsec;
 	clear_runnable(w.who);
 	schedule();
 
@@ -867,7 +890,7 @@ cv_timedwait(struct rumpuser_cv *cv, struct rumpuser_mtx *mtx, int64_t sec, int6
 
 	cv->nwaiters++;
 	cv_unsched(mtx, &nlocks);
-	rv = wait(&cv->waiters, sec * 1000 + nsec / (1000*1000));
+	rv = wait(&cv->waiters, sec * 1000 * 1000 * 1000 + nsec);
 	cv_resched(mtx, nlocks);
 	cv->nwaiters--;
 
