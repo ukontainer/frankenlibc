@@ -1,4 +1,7 @@
 #include <stdint.h>
+#ifdef MUSL_LIBC
+#include <lkl.h>
+#endif
 
 #include "init.h"
 
@@ -94,7 +97,12 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	/* XXX may need to have a rump kernel specific hook */
 #ifdef MUSL_LIBC
 	int lkl_if_up(int ifindex);
+	char *sysctls;
+
 	lkl_if_up(1);
+	sysctls = getenv("LKL_SYSCTL");
+	if (sysctls)
+		lkl_sysctl_parse_write(sysctls);
 #endif
 
 	atexit(finifn);

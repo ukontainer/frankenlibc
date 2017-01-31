@@ -247,10 +247,13 @@ register_net(int fd)
 {
 	char *addr, *mask, *gw;
 #ifdef MUSL_LIBC
+	char *qdisc_entries;
+	int ifindex;
 
 	addr = getenv("FIXED_ADDRESS");
 	mask = getenv("FIXED_MASK");
 	gw = getenv("FIXED_GATEWAY");
+	qdisc_entries = getenv("LKL_NET_QDISC");
 
 	if (addr == NULL || mask == NULL) {
 		printf("frankenlibc: no static address is specified;"
@@ -259,8 +262,13 @@ register_net(int fd)
 	}
 
 	/* FIXME: hehe always fixme tagged.. */
-	lkl_if_up(lkl_netdev_get_ifindex(nd_id));
-	lkl_if_set_ipv4(lkl_netdev_get_ifindex(nd_id), inet_addr(addr), atoi(mask));
+	ifindex = lkl_netdev_get_ifindex(nd_id);
+	lkl_if_up(ifindex);
+	lkl_if_set_ipv4(ifindex, inet_addr(addr), atoi(mask));
+
+	if (ifindex >=0 && qdisc_entries)
+		lkl_qdisc_parse_add(ifindex, qdisc_entries);
+
 #else
 	char key[16], num[16];
 	int ret;
