@@ -592,13 +592,19 @@ os_open(char *pre, char *post)
 	if (strcmp(pre, "tun") == 0 || strcmp(pre, "tap") == 0) {
 		struct ifreq ifr;
 		int fd, vnet_hdr_sz;
+		char *offload = getenv("LKL_OFFLOAD");
+		int tap_arg = 0;
 
 		strncpy(ifr.ifr_name, post, IFNAMSIZ);
 		ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-		ifr.ifr_flags |= IFF_VNET_HDR;
 
-		/* XXX: struct virtio_net_hdr_v1 */
-		vnet_hdr_sz = sizeof(struct virtio_net_hdr_mrg_rxbuf);
+		/* FIXME: should parse offload parameters ? */
+		if (offload) {
+			ifr.ifr_flags |= IFF_VNET_HDR;
+
+			/* XXX: struct virtio_net_hdr_v1 */
+			vnet_hdr_sz = sizeof(struct virtio_net_hdr_mrg_rxbuf);
+		}
 
 		fd = open("/dev/net/tun", O_RDWR | O_NONBLOCK);
 		if (fd == -1) {
@@ -611,14 +617,16 @@ os_open(char *pre, char *post)
 			return -1;
 		}
 
-		/* XXX: offload feature should be configurable */
-		if (ioctl(fd, TUNSETVNETHDRSZ, &vnet_hdr_sz) != 0) {
-			perror("TUNSETVNETHDRSZ");
-			return -1;
+		if (offload) {
+			/* XXX: offload feature should be configurable */
+			if (ioctl(fd, TUNSETVNETHDRSZ, &vnet_hdr_sz) != 0) {
+				perror("TUNSETVNETHDRSZ");
+				return -1;
+			}
+			tap_arg = TUN_F_CSUM | TUN_F_TSO4 | TUN_F_CSUM;
 		}
 
-		if (ioctl(fd, TUNSETOFFLOAD, TUN_F_CSUM | TUN_F_TSO4 |
-			  TUN_F_CSUM) != 0) {
+		if (ioctl(fd, TUNSETOFFLOAD, tap_arg) != 0) {
 			perror("TUNSETOFFLOAD");
 			return -1;
 		}
