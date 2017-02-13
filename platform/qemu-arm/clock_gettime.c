@@ -12,7 +12,7 @@ clock_gettime(clockid_t clk_id, struct timespec *tp)
 		return -1;
 	}
 
-	__platform_now.tv_nsec += 1000000;
+	__platform_now.tv_nsec += 1000;
 	if (__platform_now.tv_nsec >= 1000000000) {
 		__platform_now.tv_nsec -= 1000000000;
 		__platform_now.tv_sec += 1;
