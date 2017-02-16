@@ -623,7 +623,7 @@ os_open(char *pre, char *post)
 				perror("TUNSETVNETHDRSZ");
 				return -1;
 			}
-			tap_arg = TUN_F_CSUM | TUN_F_TSO4 | TUN_F_CSUM;
+			tap_arg = TUN_F_CSUM | TUN_F_TSO4;
 		}
 
 		if (ioctl(fd, TUNSETOFFLOAD, tap_arg) != 0) {
