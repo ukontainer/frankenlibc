@@ -109,6 +109,8 @@ rumpns_virt_hwaddr(char *ifname, uint8_t hwaddr[6])
 	fd = atoi(&ifname[4]);
 
 	memcpy(hwaddr, __franken_fd[fd].st.st_hwaddr, 6);
+	/* XXX: if host nic is bridged, the same hwaddr doesn't work */
+	hwaddr[5] = 0x02;
 
 	return 0;
 }
