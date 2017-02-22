@@ -1,0 +1,28 @@
+define bmk_thr_pr
+	set $thr = (struct thread *)$arg0
+	printf "n(%p): %-10s\tsp: 0x%016x\tf: 0x%08x\tw: %ld\n", $thr, $thr->name, \
+	    $thr->ctx.uc_stack->ss_sp, $thr->flags, $thr->wakeup_time
+end
+
+define bmk_thr_apply_name
+	set $thr = thread_list->tqh_first
+	while ($thr)
+		if (strncmp($thr->name, $arg0, strlen($arg0)) == 0)
+			$arg1 $thr
+		end
+		set $thr = $thr->thread_list.tqe_next
+	end
+end
+
+define bmk_thr_apply
+	set $thr = thread_list->tqh_first
+	while ($thr)
+		$arg0 $thr
+		set $thr = $thr->thread_list.tqe_next
+	end
+end
+	
+define bmk_thr_pr_all
+       printf "now=%ld\n", now()
+	bmk_thr_apply bmk_thr_pr
+end
