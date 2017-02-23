@@ -213,13 +213,11 @@ rumpuser_kill(int64_t pid, int sig)
 
 int
 rumpuser_thread_create(void *(*f)(void *), void *arg, const char *thrname,
-        int joinable, int pri, int cpuidx, void **tptr,
-        void *stack, size_t stack_size)
+        int joinable, int pri, int cpuidx, void **tptr)
 {
         struct thread *thr;
 
-        thr = create_thread(thrname, NULL, (void (*)(void *))f, arg,
-                            stack, stack_size, joinable);
+        thr = create_thread(thrname, NULL, (void (*)(void *))f, arg, NULL, 0, joinable);
 
         if (!thr)
                 return EINVAL;

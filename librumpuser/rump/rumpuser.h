@@ -171,7 +171,7 @@ int rumpuser_getrandom(void *, size_t, int, size_t *);
  * threads, scheduling (host) and synchronization
  */
 int  rumpuser_thread_create(void *(*f)(void *), void *, const char *, int,
-			    int, int, void **, void *, size_t);
+			    int, int, void **);
 void rumpuser_thread_exit(void) __dead;
 int  rumpuser_thread_join(void *);
 void *rumpuser_thread_self(void);
