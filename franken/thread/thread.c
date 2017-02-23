@@ -198,7 +198,7 @@ schedule(void)
 
 	do {
 		tm = now();	
-		wakeup = tm + 1000; /* wake up in 1s max */
+		wakeup = tm + 1000*1000; /* wake up in 1ms max */
 		next = NULL;
 		TAILQ_FOREACH_SAFE(thread, &thread_list, thread_list, tmp) {
 			if (!is_runnable(thread) && thread->wakeup_time >= 0) {
