@@ -351,18 +351,6 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 		       lkl_strerror(ret));
 	}
 
-	/* tmpfs */
-	ret = lkl_sys_mkdir("/tmp/", 0700);
-	if (ret < 0 && ret != -EEXIST) {
-		printf("can't mkdir /tmp to: %s\n",
-		       lkl_strerror(ret));
-	}
-	ret = lkl_sys_mount(NULL, "/tmp", (char*)"tmpfs", 0, NULL);
-	if (ret) {
-		printf("can't mount /tmp: %s\n",
-		       lkl_strerror(ret));
-	}
-
 	atexit(unmount_atexit);
 	return ret;
 #else
