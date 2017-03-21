@@ -81,11 +81,7 @@ rumpkernel_explode_libc()
 
 rumpkernel_build_extra()
 {
-	RUMPSRC=${RUMPSRC} \
-	RUMPOBJ=${RUMPOBJ} \
-	OUTDIR=${OUTDIR} \
-	BINDIR=${BINDIR} \
-		${MAKE} ${STDJ} -C rumpkernel/linux
+	return 0
 }
 
 rumpkernel_maketools()

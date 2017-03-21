@@ -281,7 +281,7 @@ if [ "${OS}" = "unknown" ]; then
 fi
 
 [ -f platform/${OS}/platform.sh ] && . platform/${OS}/platform.sh
-[ -f rumpkernel/${RUMP_KERNEL}/rumpkernel.sh ] && . rumpkernel/${RUMP_KERNEL}/rumpkernel.sh
+[ -f rumpkernel/${RUMP_KERNEL}.sh ] && . rumpkernel/${RUMP_KERNEL}.sh
 
 RUNTESTS="${RUNTESTS-test}"
 MAKETOOLS="${MAKETOOLS-yes}"

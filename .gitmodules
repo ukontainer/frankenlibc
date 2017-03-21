@@ -1,5 +1,5 @@
 [submodule "lkl-linux"]
-	path = lkl-linux
+	path = linux
 	url = git://github.com/thehajime/lkl-linux
 [submodule "musl"]
 	path = musl
