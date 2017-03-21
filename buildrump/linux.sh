@@ -1,14 +1,14 @@
-RUMPKERN_CPPFLAGS="-D__linux__"
+RUMPKERN_CPPFLAGS="-D__linux__ -DCONFIG_LKL"
 
 checkcheckout ()
 {
 
-	[ -f "${LKLSRC}/arch/lkl/Makefile" ] || \
-	    die "Cannot find ${LKLSRC}/arch/lkl/Makefile!"
+	[ -f "${LKL_SRCDIR}/arch/lkl/Makefile" ] || \
+	    die "Cannot find ${LKL_SRCDIR}/arch/lkl/Makefile!"
 
 	[ ! -z "${TARBALLMODE}" ] && return
 
-	if ! ${BRDIR}/checkout.sh checkcheckout ${LKLSRC} \
+	if ! ${BRDIR}/checkout.sh checkcheckout ${LKL_SRCDIR} \
 	    && ! ${TITANMODE}; then
 		die 'revision mismatch, run checkout (or -H to override)'
 	fi
@@ -16,8 +16,8 @@ checkcheckout ()
 
 makebuild ()
 {
-	echo "=== Linux build LKLSRC=${LKLSRC} ==="
-	cd ${LKLSRC}
+	echo "=== Linux build LKLSRC=${LKL_SRCDIR} ==="
+	cd ${LKL_SRCDIR}
 	VERBOSE="V=0"
 	if [ ${NOISE} -gt 1 ] ; then
 		VERBOSE="V=1"
@@ -33,16 +33,16 @@ makebuild ()
 
 	set -e
 	set -x
-
-	export RUMP_PREFIX=${OBJDIR}/../librumpuser/
-	mkdir -p ${OBJDIR}/lkl-linux
+	export RUMP_PREFIX=${SRCDIR}/sys/rump
+	export RUMP_INCLUDE=${SRCDIR}/sys/rump/include
+	mkdir -p ${OBJDIR}/linux
 
 	cd tools/lkl
-	rm -f ${OBJDIR}/lkl-linux/tools/lkl/lib/lkl.o
-	make CROSS_COMPILE=${CROSS} rumprun=no -j ${JNUM} ${VERBOSE} O=${OBJDIR}/lkl-linux/
+	rm -f ${OBJDIR}/linux/tools/lkl/lib/lkl.o
+	make CROSS_COMPILE=${CROSS} rumprun=yes -j ${JNUM} ${VERBOSE} O=${OBJDIR}/linux
 
 	cd ../../
-	make CROSS_COMPILE=${CROSS} headers_install ARCH=lkl O=${OBJDIR}/rump/
+	make CROSS_COMPILE=${CROSS} headers_install ARCH=lkl O=${DESTDIR}/ PREFIX=/ INSTALL_HDR_PATH=${DESTDIR}/
 
 	set +x
 }
@@ -52,13 +52,15 @@ makeinstall ()
 
 	# XXX for app-tools
 	mkdir -p ${DESTDIR}/bin/
-	mkdir -p ${OBJDIR}/rumptools/dest/usr/include/rumprun
+	mkdir -p ${DESTDIR}/include/rumprun
 
-	export RUMP_PREFIX=${OBJDIR}/../librumpuser/
-	make rumprun=no headers_install libraries_install CROSS_COMPILE=${CROSS} \
-	     DESTDIR=${DESTDIR} \
-	     -C ${LKLSRC}/tools/lkl/ O=${OBJDIR}/lkl-linux/
-
+	export RUMP_PREFIX=${SRCDIR}/sys/rump
+	export RUMP_INCLUDE=${SRCDIR}/sys/rump/include
+	make rumprun=yes headers_install libraries_install DESTDIR=${DESTDIR}\
+	     -C ./tools/lkl/ O=${OBJDIR}/linux  PREFIX=/
+	# XXX: for netconfig.h
+	mkdir -p ${DESTDIR}/include/rump/
+	cp -pf ${BRDIR}/brlib/libnetconfig/rump/netconfig.h ${DESTDIR}/include/rump/
 }
 
 #
@@ -73,7 +75,8 @@ makekernelheaders ()
 
 maketests ()
 {
-	printf 'Linux libos test ... '
-	make -C ${LKLSRC}/tools/lkl test || die Linux libos failed
+	printf 'SKIP: Linux test currently not implemented yet ... \n'
+	return
+	printf 'Linux test ... \n'
+	make -C ${LKL_SRCDIR}/tools/lkl test O=${OBJDIR}/linux || die LKL test failed
 }
-

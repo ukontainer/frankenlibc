@@ -519,6 +519,7 @@ maketools ()
 	# very confused if you start the build, it bombs, you add zlib,
 	# and retry.
 	doesitbuild_host '#include <zlib.h>
+#include <stdlib.h>
 int main() {gzopen(NULL, NULL); return 0;}' -lz \
 	    || die 'Host zlib (libz, -lz) required, please install one!'
 
@@ -562,7 +563,7 @@ int main() {gzopen(NULL, NULL); return 0;}' -lz \
 	cat >> "${MKCONF}" << EOF
 BUILDRUMP_IMACROS=${BRIMACROS}
 .if \${BUILDRUMP_SYSROOT:Uno} == "yes"
-BUILDRUMP_CPPFLAGS=--sysroot=\${BUILDRUMP_STAGE}
+BUILDRUMP_CPPFLAGS=--sysroot=\${BUILDRUMP_STAGE} -isystem =/usr/include
 .else
 BUILDRUMP_CPPFLAGS=-I\${BUILDRUMP_STAGE}/usr/include
 .endif
@@ -1233,6 +1234,7 @@ parseargs ()
 	OBJDIR=./obj
 	DESTDIR=./rump
 	SRCDIR=./src
+	LKL_SRCDIR=./linux
 	JNUM=4
 
 	while getopts 'd:DhHj:kl:o:qrs:T:V:F:' opt; do
@@ -1396,7 +1398,7 @@ parseargs ()
 		docheckout=true
 		checkoutstyle=cvs
 	fi
-	if ${docheckout} && ${RUMPKERNEL} = "linux" ; then
+	if ${docheckout} && [ ${RUMPKERNEL} = "linux" ] ; then
 		docheckout=true
 		checkoutstyle=linux-git
 	fi
@@ -1434,6 +1436,7 @@ resolvepaths ()
 
 	abspath BRTOOLDIR
 	abspath SRCDIR
+	[ "${RUMPKERNEL}" = "linux" ] && abspath LKL_SRCDIR
 
 	RUMPMAKE="${BRTOOLDIR}/bin/brrumpmake"
 	BRIMACROS="${BRTOOLDIR}/include/opt_buildrump.h"
@@ -1483,7 +1486,7 @@ done
 
 parseargs "$@"
 
-${docheckout} && { ${BRDIR}/checkout.sh ${checkoutstyle} ${SRCDIR} || exit 1; }
+${docheckout} && { ${BRDIR}/checkout.sh ${checkoutstyle} ${SRCDIR} ${LKL_SRCDIR} || exit 1; }
 
 if ${doprobe} || ${dotools} || ${dobuild} || ${dokernelheaders} \
     || ${doinstall} || ${dotests}; then

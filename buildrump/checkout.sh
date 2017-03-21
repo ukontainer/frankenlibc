@@ -64,7 +64,7 @@ NBSRC_EXTRA_usr=''
 
 GITREPO='https://github.com/rumpkernel/src-netbsd'
 GITREPOPUSH='git@github.com:rumpkernel/src-netbsd'
-GITREPO_LINUX='https://github.com/thehajime/lkl-linux'
+GITREPO_LKL='https://github.com/libos-nuse/lkl-linux'
 GITREVFILE='.srcgitrev'
 
 checkoutcvs ()
@@ -200,30 +200,30 @@ checkoutgit ()
 }
 
 # Check out Linux (LKL) sources.
-LIBOS_REV=rump-hypcall
+LKL_REV=rump-hypcall-upstream
 checkoutgitlinux ()
 {
 
-	echo ">> Fetching Linux sources to ${LINUX_SRCDIR} using git"
+	echo ">> Fetching Linux/LKL sources to ${LKL_SRCDIR} using git"
 
-	if [ -e "${LINUX_SRCDIR}" -a ! -e "${LINUX_SRCDIR}/.git" ]; then
+	if [ -e "${LKL_SRCDIR}" -a ! -e "${LKL_SRCDIR}/.git" ]; then
 		echo '>>'
-		echo ">> NOTICE: Not a buildrump.sh-based git repo in ${LINUX_SRCDIR}"
+		echo ">> NOTICE: Not a buildrump.sh-based git repo in ${LKL_SRCDIR}"
 		echo '>> Cannot verify repository version.  Proceeding ...'
 		echo '>>'
 		return 0
 	fi
 
-	gitrev=${LIBOS_REV}
+	gitrev=${LKL_REV}
 	[ $? -eq 0 ] || die Cannot determine relevant git revision
-	if [ -e ${LINUX_SRCDIR}/.git ] ; then
-		cd ${LINUX_SRCDIR}
+	if [ -e ${LKL_SRCDIR}/.git ] ; then
+		cd ${LKL_SRCDIR}
 #		[ -z "$(${GIT} status --porcelain)" ] \
-#		    || die "Cloned repo in ${LINUX_SRCDIR} is not clean, aborting."
-		${GIT} fetch origin rump-hypcall || die Failed to fetch repo
+#		    || die "Cloned repo in ${LKL_SRCDIR} is not clean, aborting."
+		${GIT} fetch origin ${LKL_REV} || die Failed to fetch repo
 	else
-		${GIT} clone -n ${GITREPO_LINUX} ${LINUX_SRCDIR} || die Clone failed
-		cd ${LINUX_SRCDIR}
+		${GIT} clone -n ${GITREPO_LKL} ${LKL_SRCDIR} || die Clone failed
+		cd ${LKL_SRCDIR}
 	fi
 
 	${GIT} checkout -q ${gitrev} || \
@@ -386,7 +386,7 @@ BRDIR=$(dirname $0)
 
 [ $# -lt 2 ] && die Invalid usage.  Run this script via buildrump.sh
 SRCDIR=${2}
-LINUX_SRCDIR=${3}
+LKL_SRCDIR=${3}
 
 # default to the most secure source for githubdate
 if [ -z "${BUILDRUMP_CVSROOT}" ]; then
@@ -433,9 +433,12 @@ git)
 	;;
 linux-git)
 	setgit || die "require working git"
-	cd $(dirname $0)
+	curdir="$(pwd)"
+	# XXX: currently linux build requires src-netbsd
+	checkoutgit
+	cd "${curdir}"
 	checkoutgitlinux
-	cd $(dirname $0)
+	cd "${curdir}"
 	echo '>> checkout done'
 	;;
 githubdate)

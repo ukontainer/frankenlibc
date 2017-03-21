@@ -142,7 +142,7 @@ makeinstall ()
 # install kernel headers.
 # Note: Do _NOT_ do this unless you want to install a
 #       full rump kernel application stack
-#  
+#
 makekernelheaders ()
 {
 
