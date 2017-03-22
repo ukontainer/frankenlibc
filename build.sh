@@ -5,12 +5,10 @@ MAKE=${MAKE-make}
 RUMPOBJ=${PWD}/rumpobj
 RUMP=${RUMPOBJ}/rump
 RUMPSRC=${PWD}/src
-LKLSRC=${PWD}/lkl-linux
 OUTDIR=${PWD}/rump
 NCPU=1
 RUMP_KERNEL=netbsd
 
-export LKLSRC
 export RUMPSRC
 export RUMPOBJ
 
@@ -421,7 +419,7 @@ fi
 # for Linux case
 if [ ${RUMP_KERNEL} != "netbsd" ]
 then
-	ALL_LIBS=${RUMPOBJ}/lkl-linux/tools/lkl/liblkl.a
+	ALL_LIBS=${RUMPOBJ}/linux/tools/lkl/liblkl.a
 fi
 
 # explode and implode

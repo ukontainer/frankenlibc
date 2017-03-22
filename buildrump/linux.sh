@@ -18,31 +18,38 @@ makebuild ()
 {
 	echo "=== Linux build LKLSRC=${LKL_SRCDIR} ==="
 	cd ${LKL_SRCDIR}
-	VERBOSE="V=0"
+	LKL_VERBOSE="V=0"
 	if [ ${NOISE} -gt 1 ] ; then
-		VERBOSE="V=1"
+		LKL_VERBOSE="V=1"
 	fi
 
-	CROSS=$(${CC} -dumpmachine)
-	if [ ${CROSS} = "$(gcc -dumpmachine)" ]
+	LKL_CROSS=$(${CC} -dumpmachine)
+	if [ ${LKL_CROSS} = "$(gcc -dumpmachine)" ]
 	then
-		CROSS=
+		LKL_CROSS=
 	else
-		CROSS=${CROSS}-
+		LKL_CROSS=${LKL_CROSS}-
+	fi
+
+	export LKL_VERBOSE
+	export LKL_CROSS
+
+	# need proper RUMP_PREFIX and RUMP_INCLUDE configuration from caller
+	if [ -z "${RUMP_PREFIX:-}" ]; then
+		die "No RUMP_PREFIX env configured. exit."
 	fi
 
 	set -e
 	set -x
-	export RUMP_PREFIX=${SRCDIR}/sys/rump
-	export RUMP_INCLUDE=${SRCDIR}/sys/rump/include
 	mkdir -p ${OBJDIR}/linux
 
 	cd tools/lkl
 	rm -f ${OBJDIR}/linux/tools/lkl/lib/lkl.o
-	make CROSS_COMPILE=${CROSS} rumprun=yes -j ${JNUM} ${VERBOSE} O=${OBJDIR}/linux
+	make CROSS_COMPILE=${LKL_CROSS} ${LKL_EXT_OPT} -j ${JNUM} ${LKL_VERBOSE} O=${OBJDIR}/linux
 
 	cd ../../
-	make CROSS_COMPILE=${CROSS} headers_install ARCH=lkl O=${DESTDIR}/ PREFIX=/ INSTALL_HDR_PATH=${DESTDIR}/
+	make CROSS_COMPILE=${LKL_CROSS} ${LKL_EXT_OPT} headers_install ARCH=lkl O=${DESTDIR}/ \
+	     PREFIX=/ INSTALL_HDR_PATH=${DESTDIR}/ ${LKL_VERBOSE}
 
 	set +x
 }
@@ -54,10 +61,9 @@ makeinstall ()
 	mkdir -p ${DESTDIR}/bin/
 	mkdir -p ${DESTDIR}/include/rumprun
 
-	export RUMP_PREFIX=${SRCDIR}/sys/rump
-	export RUMP_INCLUDE=${SRCDIR}/sys/rump/include
-	make rumprun=yes headers_install libraries_install DESTDIR=${DESTDIR}\
-	     -C ./tools/lkl/ O=${OBJDIR}/linux  PREFIX=/
+	# need proper RUMP_PREFIX and RUMP_INCLUDE configuration from caller
+	make CROSS_COMPILE=${LKL_CROSS} ${LKL_EXT_OPT} headers_install libraries_install DESTDIR=${DESTDIR}\
+	     -C ./tools/lkl/ O=${OBJDIR}/linux  PREFIX=/ ${LKL_VERBOSE}
 	# XXX: for netconfig.h
 	mkdir -p ${DESTDIR}/include/rump/
 	cp -pf ${BRDIR}/brlib/libnetconfig/rump/netconfig.h ${DESTDIR}/include/rump/

@@ -2,6 +2,10 @@
 
 rumpkernel_buildrump()
 {
+
+export RUMP_PREFIX=${PWD}/librumpuser/
+export LKL_EXT_OPT="rumprun=no"
+
 ./buildrump/buildrump.sh \
 	-V RUMP_CURLWP=hypercall -V RUMP_LOCKS_UP=yes \
 	-V MKPIC=no -V RUMP_KERNEL_IS_LIBC=1 \
@@ -56,7 +60,7 @@ rumpkernel_install_header()
 	appendvar EXTRA_CFLAGS "-DCONFIG_LKL"
 
 	# install headers
-	cp -a ${RUMP}/usr/include/* ${OUTDIR}/include
+	cp -a ${RUMP}/include/* ${OUTDIR}/include
 	cp -a ${RUMPOBJ}/musl/include/* ${OUTDIR}/include
 
 }
