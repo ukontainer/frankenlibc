@@ -174,9 +174,6 @@ int  rumpuser_thread_create(void *(*f)(void *), void *, const char *, int,
 			    int, int, void **);
 void rumpuser_thread_exit(void) __dead;
 int  rumpuser_thread_join(void *);
-void *rumpuser_thread_self(void);
-void *rumpuser_thread_get_cookie(void);
-void rumpuser_thread_set_cookie(void *thread, void *cookie);
 
 #if defined(LIBRUMPUSER) || defined(RUMP__CURLWP_PRIVATE)
 enum rumplwpop {

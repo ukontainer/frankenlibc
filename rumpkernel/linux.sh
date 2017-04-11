@@ -78,6 +78,7 @@ rumpkernel_explode_libc()
 (
 	cd ${RUMPOBJ}/explode/musl
 	${AR-ar} x ${RUMPOBJ}/musl/lib/libc.a
+	cp ${RUMPOBJ}/${RUMP_KERNEL}.o ./
 )
 	LIBC_DIR=musl
 
@@ -85,6 +86,9 @@ rumpkernel_explode_libc()
 
 rumpkernel_build_extra()
 {
+	${MAKE} -C rumpkernel/ RUMP_KERNEL=${RUMP_KERNEL}
+	cp rumpkernel/${RUMP_KERNEL}.o ${RUMPOBJ}/
+	${MAKE} -C rumpkernel/ clean RUMP_KERNEL=${RUMP_KERNEL}
 	return 0
 }
 
