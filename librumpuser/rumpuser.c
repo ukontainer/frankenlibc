@@ -241,6 +241,12 @@ rumpuser_thread_join(void *p)
         return 0;
 }
 
+void *
+rumpuser_thread_self(void)
+{
+	return get_current();
+}
+
 /* mtx */
 
 void
