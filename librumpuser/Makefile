@@ -20,8 +20,9 @@ OBJS=$(OBJDIR)/rumpuser.o
 OBJS+=$(OBJDIR)/rumpuser_mem.o $(OBJDIR)/rumpuser_random.o
 OBJS+=$(OBJDIR)/rumpuser_component.o
 
-OBJS+=$(OBJDIR)/rumpuser_sp.o $(OBJDIR)/rumpuser_file.o
+OBJS+=$(OBJDIR)/rumpuser_file.o
 OBJS+=$(OBJDIR)/rumpuser_daemonize.o $(OBJDIR)/rumpuser_dl.o
+OBJS+=$(OBJDIR)/sysproxy.o
 
 default:			$(LIB)
 
@@ -60,6 +61,10 @@ $(OBJDIR)/rumpuser_daemonize.o:	rumpuser_daemonize.c $(DEPS)
 $(OBJDIR)/rumpuser_dl.o:	rumpuser_dl.c $(DEPS)
 				@mkdir -p $(OBJDIR)
 				$(COMPILE.c) -o $@ rumpuser_dl.c
+
+$(OBJDIR)/sysproxy.o:		sysproxy.c $(DEPS)
+				@mkdir -p $(OBJDIR)
+				$(CC) -c -I$(RUMPOBJ)/musl/include $(CPPFLAGS) $(CFLAGS) -o $@ sysproxy.c
 
 .PHONY:				clean
 clean:				
