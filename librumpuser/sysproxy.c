@@ -34,22 +34,15 @@
  * work correctly from one hardware architecture to another.
  */
 
+/* so far only linux rumpkernel supported to use sysproxy */
+#ifdef CONFIG_LKL
+
 #ifdef __NetBSD__
 #include <sys/cdefs.h>
 
 #if !defined(lint)
 __RCSID("$NetBSD: rumpuser_sp.c,v 1.68 2014/12/08 00:12:03 justin Exp $");
 #endif /* !lint */
-#elif __linux__
-#define __unused __attribute__((__unused__))
-/* flags to rump_lwproc_rfork */
-#define RUMP_RFFDG	0x01
-#define RUMP_RFCFDG	0x02
-/* slightly-easier-to-parse aliases for the above */
-#define RUMP_RFFD_SHARE 0x00 /* lossage */
-#define RUMP_RFFD_COPY	RUMP_RFFDG
-#define RUMP_RFFD_CLEAR	RUMP_RFCFDG
-#define INFTIM (-1)
 #endif
 
 #include <sys/types.h>
@@ -71,7 +64,23 @@ __RCSID("$NetBSD: rumpuser_sp.c,v 1.68 2014/12/08 00:12:03 justin Exp $");
 #include <string.h>
 #include <unistd.h>
 
+#ifdef CONFIG_LKL
+
+#define __unused __attribute__((__unused__))
+/* flags to rump_lwproc_rfork */
+#define RUMP_RFFDG	0x01
+#define RUMP_RFCFDG	0x02
+/* slightly-easier-to-parse aliases for the above */
+#define RUMP_RFFD_SHARE 0x00 /* lossage */
+#define RUMP_RFFD_COPY	RUMP_RFFDG
+#define RUMP_RFFD_CLEAR	RUMP_RFCFDG
+#define INFTIM (-1)
+
 #include "rumpuser_port.h"
+
+#elif __NetBSD__
+#include <rump/rump.h>
+#endif
 #include <rump/rumpuser.h>
 
 extern struct rumpuser_hyperup rumpuser__hyp;
@@ -650,9 +659,7 @@ tcp_parse(const char *addr, struct sockaddr **sa, int allow_wildcard)
 	int port;
 
 	memset(&sin, 0, sizeof(sin));
-#ifndef __linux__
-	sin.sin_len = sizeof(sin);
-#endif
+	SIN_SETLEN(sin,sin_len);
 	sin.sin_family = AF_INET;
 
 	p = strchr(addr, ':');
@@ -771,7 +778,7 @@ unix_parse(const char *addr, struct sockaddr **sa, int allow_wildcard)
 		}
 	}
 	strcat(s_un.sun_path, addr);
-#if defined(__linux__) || defined(__sun__) || defined(__CYGWIN__)
+#if defined(__linux__) || defined(__sun__) || defined(__CYGWIN__) || defined(CONFIG_LKL)
 	slen = sizeof(s_un);
 #else
 	s_un.sun_len = SUN_LEN(&s_un);
@@ -909,7 +916,7 @@ static char banner[MAXBANNER];
 
 
 /* how to use atomic ops on Linux? */
-#if defined(__linux__) || defined(__APPLE__) || defined(__CYGWIN__) || defined(__OpenBSD__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__CYGWIN__) || defined(__OpenBSD__) || defined(CONFIG_LKL)
 static pthread_mutex_t discomtx = PTHREAD_MUTEX_INITIALIZER;
 
 static void
@@ -2239,3 +2246,4 @@ rumpuser_sp_fini(void *arg)
 	}
 
 }
+#endif

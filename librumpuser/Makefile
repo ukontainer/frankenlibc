@@ -13,6 +13,7 @@ OBJDIR=$(RUMPOBJ)/librumpuser
 
 DEPS=$(INCS)
 INCLUDE=-I. -I../franken/include -I../franken/ucontext -I../franken/thread -I../franken/init -I../platform/include
+INCLUDE+=-I$(RUMP)/include
 CPPFLAGS+=-nostdinc $(INCLUDE)
 CFLAGS+=-fno-stack-protector
 

@@ -57,4 +57,10 @@
 #define __NetBSD_Prereq__(a,b,c) 0
 #endif
 
+#ifdef CONFIG_LKL
+#define SIN_SETLEN(a,b)
+#else  /* BSD */
+#define SIN_SETLEN(_sin_, _len_) _sin_.sin_len = _len_
+#endif
+
 #endif /* _LIB_LIBRUMPUSER_RUMPUSER_PORT_H_ */
