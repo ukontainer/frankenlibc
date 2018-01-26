@@ -4,7 +4,7 @@ rumpkernel_buildrump()
 {
 
 export RUMP_PREFIX=${PWD}/librumpuser/
-export LKL_EXT_OPT="rumprun=no"
+export LKL_EXT_OPT="rumprun=no KOPT='buildrump=yes'"
 
 ./buildrump/buildrump.sh \
 	-V RUMP_CURLWP=hypercall -V RUMP_LOCKS_UP=yes \
