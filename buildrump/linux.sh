@@ -24,7 +24,7 @@ makebuild ()
 	fi
 
 	LKL_CROSS=$(${CC} -dumpmachine)
-	if [ ${LKL_CROSS} = "$(gcc -dumpmachine)" ]
+	if [ ${LKL_CROSS} = "$(cc -dumpmachine)" ]
 	then
 		LKL_CROSS=
 	else
@@ -45,10 +45,10 @@ makebuild ()
 
 	cd tools/lkl
 	rm -f ${OBJDIR}/linux/tools/lkl/lib/lkl.o
-	make CROSS_COMPILE=${LKL_CROSS} ${LKL_EXT_OPT} -j ${JNUM} ${LKL_VERBOSE} O=${OBJDIR}/linux
+	${MAKE} CROSS_COMPILE=${LKL_CROSS} ${LKL_EXT_OPT} -j ${JNUM} ${LKL_VERBOSE} O=${OBJDIR}/linux
 
 	cd ../../
-	make CROSS_COMPILE=${LKL_CROSS} ${LKL_EXT_OPT} headers_install ARCH=lkl O=${DESTDIR}/ \
+	${MAKE} CROSS_COMPILE=${LKL_CROSS} ${LKL_EXT_OPT} headers_install ARCH=lkl O=${DESTDIR}/ \
 	     PREFIX=/ INSTALL_HDR_PATH=${DESTDIR}/ ${LKL_VERBOSE}
 
 	set +x
@@ -62,7 +62,7 @@ makeinstall ()
 	mkdir -p ${DESTDIR}/include/rumprun
 
 	# need proper RUMP_PREFIX and RUMP_INCLUDE configuration from caller
-	make CROSS_COMPILE=${LKL_CROSS} ${LKL_EXT_OPT} headers_install libraries_install DESTDIR=${DESTDIR}\
+	${MAKE} CROSS_COMPILE=${LKL_CROSS} ${LKL_EXT_OPT} headers_install libraries_install DESTDIR=${DESTDIR}\
 	     -C ./tools/lkl/ O=${OBJDIR}/linux  PREFIX=/ ${LKL_VERBOSE}
 	# XXX: for netconfig.h
 	mkdir -p ${DESTDIR}/include/rump/
@@ -84,5 +84,5 @@ maketests ()
 	printf 'SKIP: Linux test currently not implemented yet ... \n'
 	return
 	printf 'Linux test ... \n'
-	make -C ${LKL_SRCDIR}/tools/lkl test O=${OBJDIR}/linux || die LKL test failed
+	${MAKE} -C ${LKL_SRCDIR}/tools/lkl test O=${OBJDIR}/linux || die LKL test failed
 }

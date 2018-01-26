@@ -8,7 +8,7 @@
 #define FREEBSD_MAP_STACK		0x0400
 #define FREEBSD_MAP_ALIGNED_SUPER	MAP_ALIGNED(1)
 
-void *__mmap(void *, size_t, int, int, int, off_t);
+void *sc_mmap(void *, size_t, int, int, int, off_t);
 
 #ifdef HUGEPAGESIZE
 static int usehuge = 1;
@@ -29,12 +29,12 @@ mmap(void *addr, size_t length, int prot, int nflags, int fd, off_t offset)
 
 #ifdef HUGEPAGESIZE
 	if (usehuge && length >= HUGEPAGESIZE && ((flags & MAP_ALIGNMENT_MASK) == 0)) {
-		void *mem = __mmap(addr, length, prot, flags | FREEBSD_MAP_ALIGNED_SUPER, fd, offset);
+		void *mem = sc_mmap(addr, length, prot, flags | FREEBSD_MAP_ALIGNED_SUPER, fd, offset);
 		if (mem != MAP_FAILED)
 			return mem;
 		usehuge = 0;
 	}
 #endif
 
-	return __mmap(addr, length, prot, flags, fd, offset);
+	return sc_mmap(addr, length, prot, flags, fd, offset);
 }

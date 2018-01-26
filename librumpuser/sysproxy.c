@@ -63,6 +63,7 @@ __RCSID("$NetBSD: rumpuser_sp.c,v 1.68 2014/12/08 00:12:03 justin Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 
 #ifdef CONFIG_LKL
 

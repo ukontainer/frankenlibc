@@ -1,3 +1,3 @@
 #include "syscall.h"
 
-SYSCALL(mmap, __mmap);
+SYSCALL(mmap, sc_mmap);

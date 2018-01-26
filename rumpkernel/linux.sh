@@ -36,8 +36,8 @@ rumpkernel_createuserlib()
 	./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
 		    --disable-optimize --prefix=${RUMPOBJ}/musl
 	# XXX: bug of musl Makefile ?
-	make obj/src/internal/version.h
-	make install
+	${MAKE} obj/src/internal/version.h
+	${MAKE} install
 	# install libraries
 	${INSTALL-install} -d ${OUTDIR}/lib
 	${INSTALL-install} ${RUMPOBJ}/musl/lib/libpthread.a \
@@ -65,11 +65,15 @@ rumpkernel_install_header()
 
 }
 
+[ ${OS} = "freebsd" ] && appendvar UNDEF "-U__FreeBSD__"
+
 rumpkernel_install_extra_libs ()
 {
-	UNDEF="-D__linux__ -DCONFIG_LKL -D__RUMPRUN__"
-	sudo setcap cap_net_raw=ep ${BINDIR}/rexec \
-	 || echo "setcap failed. ignoring"
+	appendvar UNDEF "-D__linux__ -DCONFIG_LKL -D__RUMPRUN__"
+	if [ "${OS}" = "linux" ]; then
+	    sudo setcap cap_net_raw=ep ${BINDIR}/rexec \
+		|| echo "setcap failed. ignoring"
+	fi
 	return 0
 }
 

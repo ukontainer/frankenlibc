@@ -1,3 +1,3 @@
 #include "syscall.h"
 
-SYSCALL(clock_gettime, __clock_gettime);
+SYSCALL(clock_gettime, sc_clock_gettime);

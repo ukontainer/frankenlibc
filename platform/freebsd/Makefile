@@ -16,6 +16,7 @@ OBJ+=$(OBJDIR)/fcntl.o
 OBJ+=$(OBJDIR)/fstat.o $(OBJDIR)/__fstat.o $(OBJDIR)/fsync.o
 OBJ+=$(OBJDIR)/getpagesize.o $(OBJDIR)/getrandom.o
 OBJ+=$(OBJDIR)/ioctl.o $(OBJDIR)/kill.o
+OBJ+=$(OBJDIR)/lseek.o
 OBJ+=$(OBJDIR)/mmap.o $(OBJDIR)/__mmap.o
 OBJ+=$(OBJDIR)/munmap.o $(OBJDIR)/mprotect.o $(OBJDIR)/nanosleep.o
 OBJ+=$(OBJDIR)/poll.o
@@ -109,6 +110,9 @@ $(OBJDIR)/ioctl.o:		ioctl.S $(HEADERS)
 
 $(OBJDIR)/kill.o:		kill.S $(HEADERS)
 				$(COMPILE.S) -o $@ kill.S
+
+$(OBJDIR)/lseek.o:		lseek.c $(HEADERS)
+				$(COMPILE.c) -o $@ lseek.c
 
 $(OBJDIR)/mmap.o:		mmap.c $(HEADERS)
 				$(COMPILE.c) -o $@ mmap.c

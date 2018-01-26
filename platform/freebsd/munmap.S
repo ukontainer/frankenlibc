@@ -1,3 +1,3 @@
 #include "syscall.h"
 
-SYSCALL(munmap, munmap);
+SYSCALL(munmap, __platform_munmap);

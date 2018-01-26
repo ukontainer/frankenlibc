@@ -3,7 +3,7 @@
 
 #include "freebsd.h"
 
-int __clock_gettime(clockid_t, struct freebsd_timespec *);
+int sc_clock_gettime(clockid_t, struct freebsd_timespec *);
 
 int
 clock_gettime(clockid_t clk_id, struct timespec *tp)
@@ -23,7 +23,7 @@ clock_gettime(clockid_t clk_id, struct timespec *tp)
 			errno = EINVAL;
 			return -1;
 	}
-	ret = __clock_gettime(fid, &ftp);
+	ret = sc_clock_gettime(fid, &ftp);
 
 	if (ret != 0) {
 		errno = EINVAL;

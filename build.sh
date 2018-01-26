@@ -9,6 +9,7 @@ OUTDIR=${PWD}/rump
 NCPU=1
 RUMP_KERNEL=netbsd
 
+export MAKE
 export RUMPSRC
 export RUMPOBJ
 
@@ -289,6 +290,7 @@ rm -rf ${OUTDIR}
 FRANKEN_CFLAGS="-std=c99 -Wall -Wextra -Wno-missing-braces -Wno-unused-parameter -Wno-missing-field-initializers"
 
 if [ "${HOST}" = "Linux" ]; then appendvar FRANKEN_CFLAGS "-D_GNU_SOURCE"; fi
+if [ "${HOST}" = "FreeBSD" ]; then appendvar FRANKEN_CFLAGS "-D_BSD_SOURCE"; fi
 
 CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
