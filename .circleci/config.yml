@@ -1,0 +1,153 @@
+version: 2
+general:
+  artifacts:
+
+do_steps: &do_steps
+ steps:
+  - run: echo "$OS-$RUMP" > ~/_os_rump
+  # XXX: this should be in Dockerfile
+  - run: echo 'export PATH=/usr/lib/ccache:${PATH}' >> $BASH_ENV
+  - restore_cache:
+      key: code-tree-shallow
+  - run:
+      name: checkout build tree
+      command: |
+        mkdir -p ~/.ssh/
+        ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+        if ! [ -d .git ]; then
+          git clone --depth=1 $CIRCLE_REPOSITORY_URL .;
+        fi
+        if [[ $CIRCLE_BRANCH == pull/* ]]; then
+           git fetch --depth=1 origin $CIRCLE_BRANCH/head;
+        else
+           git fetch --depth=1 origin $CIRCLE_BRANCH;
+        fi
+        git reset --hard $CIRCLE_SHA1
+        git submodule update --init
+  - save_cache:
+      key: code-tree-shallow-{{ epoch }}
+      paths:
+        - /home/ubuntu/project/.git
+  - run:
+      name: clean
+      command: |
+        #make distclean
+        rm -rf ~/junit
+        # XXX: gawk is required since mawk in u16.04 raises an error "exceeds implementation size limit"
+        sudo apt-get update && sudo apt-get install -y zlib1g-dev gawk
+        # XXX: those can be in arm-baremetal/Dockerfile ?
+        if [[ $OS == *qemu-arm* ]]; then
+          sudo apt-get install -y gcc-arm-none-eabi qemu-system-arm libcap2-bin
+        fi
+  - run: mkdir -p /home/ubuntu/.ccache
+  - restore_cache:
+      key: compiler-cache-{{ checksum "~/_os_rump" }}
+  - run:
+      name: start emulator
+      command: |
+        if [[ $OS == *freebsd* ]]; then
+          cd /home/ubuntu && $QEMU
+        fi
+      background: true
+  - run: ./build.sh -q -k ${RUMP} ${OS} ${OPT} notest
+  #- run: mkdir -p ~/destdir && cd tools/lkl && make DESTDIR=~/destdir
+  - save_cache:
+     paths:
+       - /home/ubuntu/.ccache
+     key: compiler-cache-{{ checksum "~/_os_rump" }}-{{ epoch }}
+  - run:
+      name: wait emulator to boot
+      command: |
+        if [[ $OS == *freebsd* ]]; then
+          while ! $MYSSH -o ConnectTimeout=1 exit 2> /dev/null
+          do
+             sleep 5
+          done
+        fi
+  - run:
+      name: run tests
+      command: |
+        mkdir -p ~/junit
+        if [ "$OS" == "linux" ]; then make -C tests run ; fi
+        if [ "$OS" == "qemu-arm" ]; then make -C tests run-simple ; fi
+        if [ "$OS" == "freebsd" ]; then
+           $MYSSH mkdir -p lkl/rumpobj lkl/rump/lib lkl/rump/bin && \
+           $MYSCP -P 7722 -pr rump/lib/libc.a lkl@localhost:lkl/rump/lib/ && \
+           $MYSCP -P 7722 -pr rump/bin/rexec lkl@localhost:lkl/rump/bin/ && \
+           $MYSCP -P 7722 -pr rumpobj/tests/ lkl@localhost:lkl/rumpobj/ && \
+           $MYSCP -P 7722 -pr tests/ lkl@localhost:lkl/ && \
+           $MYSSH gmake -C lkl/tests run;
+        fi
+        find ./linux/tools/lkl/ -type f -name "*.xml" -exec mv {} ~/junit/ \;
+      no_output_timeout: "90m"
+  - store_test_results:
+      path: ~/junit
+  - store_artifacts:
+      path: ~/junit
+
+## Customize the test machine
+jobs:
+  linux-linux:
+   docker:
+     - image: lkldocker/circleci-x86_64:0.5
+   environment:
+     OS: "linux"
+     RUMP: "linux"
+   <<: *do_steps
+
+  qemu-arm-linux:
+   docker:
+     - image: lkldocker/circleci-x86_64:0.5
+   environment:
+     OS: "qemu-arm"
+     RUMP: "linux"
+   <<: *do_steps
+
+  linux-netbsd:
+   docker:
+     - image: lkldocker/circleci-x86_64:0.5
+   environment:
+     OS: "linux"
+     RUMP: "netbsd"
+   <<: *do_steps
+
+  qemu-arm-netbsd:
+   docker:
+     - image: lkldocker/circleci-x86_64:0.5
+   environment:
+     OS: "qemu-arm"
+     RUMP: "netbsd"
+   <<: *do_steps
+
+  freebsd-linux:
+   docker:
+     - image: thehajime/freebsd-test:latest
+     #- image: lkldocker/circleci-freebsd11-x86_64:0.1
+   environment:
+     OS: "freebsd"
+     RUMP: "linux"
+     CC: "x86_64-pc-freebsd11-gcc"
+     OPT: "nocapsicum"
+   <<: *do_steps
+
+  freebsd-netbsd:
+   docker:
+     - image: thehajime/freebsd-test:latest
+     #- image: lkldocker/circleci-freebsd11-x86_64:0.1
+   environment:
+     OS: "freebsd"
+     RUMP: "netbsd"
+     CC: "x86_64-pc-freebsd11-gcc"
+     OPT: "nocapsicum"
+   <<: *do_steps
+
+workflows:
+  version: 2
+  build:
+    jobs:
+     - linux-linux
+     - linux-netbsd
+     - qemu-arm-linux
+     - qemu-arm-netbsd
+     - freebsd-linux
+     - freebsd-netbsd
