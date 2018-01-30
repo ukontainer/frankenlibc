@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <string.h>
 
 #include "rexec.h"
 
@@ -187,6 +188,20 @@ os_extrafiles()
 int
 os_open(char *pre, char *post)
 {
+	if (strcmp(pre, "tap") == 0) {
+		char path[32];
+		int fd;
+
+		sprintf(path, "/dev/%s", post);
+
+		fd = open(path, O_RDWR | O_NONBLOCK);
+		if (fd == -1) {
+			fprintf(stderr, "open %s\n", path);
+			return -1;
+		}
+
+		return fd;
+	}
 
 	fprintf(stderr, "platform does not support %s:%s\n", pre, post);
 	exit(1);

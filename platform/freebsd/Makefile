@@ -19,7 +19,7 @@ OBJ+=$(OBJDIR)/ioctl.o $(OBJDIR)/kill.o
 OBJ+=$(OBJDIR)/lseek.o
 OBJ+=$(OBJDIR)/mmap.o $(OBJDIR)/__mmap.o
 OBJ+=$(OBJDIR)/munmap.o $(OBJDIR)/mprotect.o $(OBJDIR)/nanosleep.o
-OBJ+=$(OBJDIR)/poll.o
+OBJ+=$(OBJDIR)/__poll.o $(OBJDIR)/poll.o
 OBJ+=$(OBJDIR)/pread.o
 OBJ+=$(OBJDIR)/pwrite.o $(OBJDIR)/__pwrite.o
 OBJ+=$(OBJDIR)/preadv.o $(OBJDIR)/pwritev.o
@@ -129,8 +129,11 @@ $(OBJDIR)/munmap.o:		munmap.S $(HEADERS)
 $(OBJDIR)/nanosleep.o:		nanosleep.S $(HEADERS)
 				$(COMPILE.S) -o $@ nanosleep.S
 
-$(OBJDIR)/poll.o:		poll.S $(HEADERS)
-				$(COMPILE.S) -o $@ poll.S
+$(OBJDIR)/__poll.o:		__poll.S $(HEADERS)
+				$(COMPILE.S) -o $@ __poll.S
+
+$(OBJDIR)/poll.o:		poll.c $(HEADERS)
+				$(COMPILE.c) -o $@ poll.c
 
 $(OBJDIR)/pread.o:		pread.S $(HEADERS)
 				$(COMPILE.S) -o $@ pread.S

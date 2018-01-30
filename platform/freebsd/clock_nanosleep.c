@@ -6,7 +6,7 @@
 #include "thread.h"
 
 int __platform_nanosleep(const struct freebsd_timespec *, struct freebsd_timespec *);
-int __platform_poll(struct pollfd[], nfds_t, int);
+int sc_poll(struct pollfd[], nfds_t, int);
 
 extern int __platform_npoll;
 extern struct pollfd __platform_pollfd[MAXFD];
@@ -31,7 +31,7 @@ clock_nanosleep(clockid_t clockid, int flags, const struct timespec *req, struct
 	/* use poll instead as we might have network events */
 
 	timeout = req->tv_sec * 1000 + req->tv_nsec / 1000000;
-	ret = __platform_poll(__platform_pollfd, __platform_npoll, timeout);
+	ret = sc_poll(__platform_pollfd, __platform_npoll, timeout);
 
 	if (ret == -1) {
 		errno = EINVAL;
