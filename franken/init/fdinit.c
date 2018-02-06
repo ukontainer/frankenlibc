@@ -14,15 +14,12 @@
 #include <lkl.h>
 #endif
 
-struct lkl_netdev;
-struct lkl_netdev *lkl_netdev_rumpfd_create(const char *ifname, int fd,
-					    struct lkl_netdev_args *args);
+struct lkl_netdev *lkl_netdev_rumpfd_create(const char *ifname, int fd);
 
 /* FIXME: from sys/mount.h */
 #define MS_RDONLY	 1	/* Mount read-only */
 
 static int disk_id;
-static int nd_id;
 
 enum rump_etfs_type {
 	RUMP_ETFS_REG,
@@ -82,6 +79,41 @@ mkkey(char *k, char *n, const char *pre, int dev, int fd)
 	*n++ = 0;
 }
 
+#ifdef MUSL_LIBC
+#include <lkl_config.h>
+#include <fcntl.h>
+static struct lkl_config *json_cfg;
+
+static void
+franken_lkl_load_json_config(int fd)
+{
+	int ret;
+	char buf[4096];
+
+	json_cfg = (struct lkl_config *)malloc(sizeof(struct lkl_config));
+	if (!json_cfg) {
+		printf("malloc error\n");
+		return;
+	}
+	memset(json_cfg, 0, sizeof(struct lkl_config));
+
+	ret = read(fd, buf, sizeof(buf));
+	if (ret == sizeof(buf))
+		printf("too long json conf \n\n%s\n", buf);
+
+	ret = lkl_load_config_json(json_cfg, buf);
+	if (ret < 0)
+		printf("load_config_json error \n\n%s\n", buf);
+
+}
+
+struct lkl_config *
+franken_lkl_get_json_config(void)
+{
+	return json_cfg;
+}
+#endif
+
 void
 __franken_fdinit()
 {
@@ -102,6 +134,9 @@ __franken_fdinit()
 		switch (st.st_mode & S_IFMT) {
 		case S_IFREG:
 			__franken_fd[fd].seek = 1;
+#ifdef MUSL_LIBC
+			franken_lkl_load_json_config(fd);
+#endif
 			break;
 		case S_IFBLK:
 			__franken_fd[fd].seek = 1;
@@ -124,11 +159,7 @@ __franken_fdinit()
 #ifdef MUSL_LIBC
 			/* notify virtio-mmio dev id */
 			{
-				struct lkl_netdev *nd;
-				struct lkl_netdev_args nd_args;
-
-				nd = lkl_netdev_rumpfd_create("franken-tap", fd, &nd_args);
-				nd_id = lkl_netdev_add(nd, &nd_args);
+				lkl_netdev_rumpfd_create("franken-tap", fd);
 			}
 #endif
 			break;
@@ -236,6 +267,10 @@ static int
 register_reg(int dev, int fd, int flags)
 {
 	char key[16], num[16];
+#ifdef MUSL_LIBC
+	if ((__franken_fd[fd].st.st_mode & S_IFMT) == S_IFREG)
+		return fd;
+#endif
 
 	mkkey(key, num, "/dev/vfile", dev, fd);
 	rump_pub_etfs_register(key, num, RUMP_ETFS_REG);
@@ -246,30 +281,7 @@ static void
 register_net(int fd)
 {
 	char *addr, *mask, *gw;
-#ifdef MUSL_LIBC
-	char *qdisc_entries;
-	int ifindex;
-
-	addr = getenv("FIXED_ADDRESS");
-	mask = getenv("FIXED_MASK");
-	gw = getenv("FIXED_GATEWAY");
-	qdisc_entries = getenv("LKL_NET_QDISC");
-
-	if (addr == NULL || mask == NULL) {
-		printf("frankenlibc: no static address is specified;"
-		       " use FIXED_ADDRESS and FIXED_MASK env variable.\n");
-		return;
-	}
-
-	/* FIXME: hehe always fixme tagged.. */
-	ifindex = lkl_netdev_get_ifindex(nd_id);
-	lkl_if_up(ifindex);
-	lkl_if_set_ipv4(ifindex, inet_addr(addr), atoi(mask));
-
-	if (ifindex >=0 && qdisc_entries)
-		lkl_qdisc_parse_add(ifindex, qdisc_entries);
-
-#else
+#ifndef MUSL_LIBC
 	char key[16], num[16];
 	int ret;
 	int sock;

@@ -25,3 +25,4 @@ extern struct __fdtable __franken_fd[MAXFD];
 
 void __franken_fdinit(void);
 void __franken_fdinit_create(void);
+struct lkl_config *franken_lkl_get_json_config(void);

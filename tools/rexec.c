@@ -315,6 +315,15 @@ colon_open(char *pre, char *post)
 		return -1;
 	}
 
+	if (strcmp(pre, "config") == 0) {
+		fd = open(post, O_RDONLY, S_IRUSR | S_IWUSR);
+		if (fd == -1) {
+			fprintf(stderr, "config open error %s\n", post);
+			exit(1);
+		}
+		return fd;
+	}
+
 	fd = os_open(pre, post);
 	if (fd == -1)
 		exit(1);

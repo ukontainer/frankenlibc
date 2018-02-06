@@ -71,6 +71,10 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 
 	__franken_fdinit();
 
+#ifdef MUSL_LIBC
+	lkl_load_config_pre(franken_lkl_get_json_config());
+#endif
+
 	rump_boot_setsigmodel(RUMP_SIGMODEL_IGNORE);
 	rump_init();
 
@@ -96,13 +100,8 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 
 	/* XXX may need to have a rump kernel specific hook */
 #ifdef MUSL_LIBC
-	int lkl_if_up(int ifindex);
-	char *sysctls;
-
 	lkl_if_up(1);
-	sysctls = getenv("LKL_SYSCTL");
-	if (sysctls)
-		lkl_sysctl_parse_write(sysctls);
+	lkl_load_config_post(franken_lkl_get_json_config());
 #endif
 
 	atexit(finifn);

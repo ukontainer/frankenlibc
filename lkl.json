@@ -1,0 +1,17 @@
+{
+    "gateway": "10.206.211.1",
+    "interfaces": [
+        {
+            "ifgateway": "10.206.211.1",
+            "ip": "10.1.0.2",
+            "masklen": "24",
+            "mac": "00:0d:0b:94:4e:97",
+            "param": "4",
+            "type": "rumpfd"
+        }
+    ],
+    "debug": "1",
+    "singlecpu": "1",
+    "delay_main": "50000",
+    "sysctl": "net.ipv4.tcp_wmem=4096 87380 2147483647;net.mptcp.mptcp_debug=1"
+}
