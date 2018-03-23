@@ -21,6 +21,7 @@ makebuild ()
 	LKL_VERBOSE="V=0"
 	if [ ${NOISE} -gt 1 ] ; then
 		LKL_VERBOSE="V=1"
+		set -x
 	fi
 
 	LKL_CROSS=$(${CC} -dumpmachine)
@@ -40,7 +41,6 @@ makebuild ()
 	fi
 
 	set -e
-	set -x
 	mkdir -p ${OBJDIR}/linux
 
 	cd tools/lkl

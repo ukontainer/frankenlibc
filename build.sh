@@ -1,5 +1,25 @@
 #!/bin/sh
 
+write_log()
+{
+    if [ -z ${BUILD_QUIET} ] ; then
+	if [ "$1" = "-n" ] ; then
+	    SECONDS=0
+	    /bin/echo -n "=== $1" 1>&1
+	    return
+	fi
+	/bin/echo "$* ($SECONDS sec)" 1>&1
+    else
+	if [ "$1" = "-n" ] ; then
+	    SECONDS=0
+	    /bin/echo -n "=== $2" 1>&3
+	    return
+	fi
+	/bin/echo "$* ($SECONDS sec)" 1>&3
+    fi
+
+}
+
 MAKE=${MAKE-make}
 
 RUMPOBJ=${PWD}/rumpobj
@@ -228,6 +248,20 @@ while getopts '?b:d:F:Hhj:k:L:M:m:o:p:qrs:V:' opt; do
 done
 shift $((${OPTIND} - 1))
 
+_cleanup()
+{
+    cat ${LOG_FILE} 1>&3
+    rm -f ${LOG_FILE}
+}
+
+if [ -z ${BUILD_QUIET} ] ; then
+    set -x
+else
+    LOG_FILE=$(mktemp)
+    exec 3>&1 1>>/dev/null 2>${LOG_FILE}
+    trap _cleanup EXIT
+fi
+
 if [ -z ${BINDIR+x} ]; then BINDIR=${OUTDIR}/bin; fi
 
 for arg in "$@"; do
@@ -292,6 +326,8 @@ FRANKEN_CFLAGS="-std=c99 -Wall -Wextra -Wno-missing-braces -Wno-unused-parameter
 if [ "${HOST}" = "Linux" ]; then appendvar FRANKEN_CFLAGS "-D_GNU_SOURCE"; fi
 if [ "${HOST}" = "FreeBSD" ]; then appendvar FRANKEN_CFLAGS "-D_BSD_SOURCE"; fi
 
+write_log "-n" "building tools.."
+
 CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
         LDFLAGS="${EXTRA_LDFLAGS}" \
@@ -299,9 +335,12 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         RUMPOBJ="${RUMPOBJ}" \
         RUMP="${RUMP}" \
         ${MAKE} ${OS} -C tools
+write_log " done"
 
 # call buildrump.sh
+write_log "-n" "building rumpkernel.."
 rumpkernel_buildrump
+write_log " done"
 
 # remove libraries that are not/will not work
 rm -f ${RUMP}/lib/librumpdev_ugenhc.a
@@ -335,7 +374,11 @@ done
 RUMPMAKE=${RUMPOBJ}/tooldir/rumpmake
 
 # build userspace library for rumpkernel
+write_log "-n" "building userspace libs.."
 rumpkernel_createuserlib
+write_log " done"
+
+write_log "-n" "building userspace headers.."
 
 # permissions set wrong
 chmod -R ug+rw ${RUMP}/include/*
@@ -344,6 +387,9 @@ ${INSTALL-install} -d ${OUTDIR}/include
 
 # install headers of userspace lib
 rumpkernel_install_header
+write_log " done"
+
+write_log "-n" "building platform libs.."
 
 CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	AFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
@@ -367,6 +413,9 @@ then
 	${MAKE} deterministic -C platform
 fi 
 
+write_log " done"
+write_log "-n" "building franken libs.."
+
 CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	AFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
 	ASFLAGS="${EXTRA_AFLAGS} ${DBG_F}" \
@@ -376,6 +425,9 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${HUGEPAGESIZE} ${FRANKEN_CFLAGS}" \
 	RUMP="${RUMP}" \
 	${MAKE} ${STDJ} -C franken
 
+write_log " done"
+write_log "-n" "building rumpuser libs.."
+
 CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
 	LDFLAGS="${EXTRA_LDFLAGS}" \
 	CPPFLAGS="${EXTRA_CPPFLAGS} ${RUMPUSER_FLAGS}" \
@@ -383,8 +435,14 @@ CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
 	RUMP="${RUMP}" \
 	${MAKE} ${STDJ} -C librumpuser
 
+write_log " done"
+
 # build extra library
+write_log "-n" "building extra files.."
 rumpkernel_build_extra
+write_log "done"
+
+write_log "-n" "building special libc for cross build.."
 
 # find which libs we should link
 ALL_LIBS="${RUMP}/lib/librump.a
@@ -466,6 +524,9 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	${AR-ar} cr libc.a rumpkernel/rumpkernel.o rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
 )
 
+write_log " done"
+write_log "-n" "installing from staging directory.."
+
 # install to OUTDIR
 ${INSTALL-install} -d ${BINDIR} ${OUTDIR}/lib
 ${INSTALL-install} ${RUMP}/bin/rexec ${BINDIR}
@@ -545,6 +606,9 @@ printf "#!/bin/sh\n\nexec ${RANLIB-ranlib} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}
 printf "#!/bin/sh\n\nexec ${READELF-readelf} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-readelf
 chmod +x ${BINDIR}/${TOOL_PREFIX}-*
 
+write_log " done"
+write_log "-n" "testing duplicated syms.."
+
 # test for duplicated symbols
 
 DUPSYMS=$(nm ${OUTDIR}/lib/libc.a | grep ' T ' | sed 's/.* T //g' | sort | uniq -d )
@@ -562,6 +626,9 @@ then
 	rumpkernel_maketools
 fi
 
+write_log " done"
+write_log "-n" "building tests.."
+
 # Always make tests to exercise compiler
 CC="${BINDIR}/${COMPILER}" \
 	RUMPDIR="${OUTDIR}" \
@@ -574,6 +641,9 @@ readelf -lW ${RUMPOBJ}/tests/hello | grep RWE 1>&2 && echo "WARNING: writeable e
 
 rumpkernel_build_test
 
+write_log " done"
+write_log "-n" "running tests.."
+
 if [ ${RUNTESTS} = "test" ]
 then
 	CC="${BINDIR}/${COMPILER}" \
@@ -583,3 +653,5 @@ then
 		${MAKE} -C tests run
 
 fi
+
+write_log " done"

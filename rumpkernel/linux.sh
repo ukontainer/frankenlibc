@@ -27,7 +27,7 @@ rumpkernel_createuserlib()
 {
 # build musl libc for Linux
 (
-	set -x
+	if [ -z "${BUILD_QUIET}" ] ; then set -x ;fi
 	set -e
 	echo "=== building musl ==="
 	cd musl
