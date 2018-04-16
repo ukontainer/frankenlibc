@@ -20,6 +20,7 @@
 #define	SYS_write          4
 #define	SYS_kill           37
 #define	SYS_pipe           42
+#define	SYS_sigaction      46
 #define	SYS_sigprocmask    48
 #define	SYS_ioctl          54
 #define	SYS_munmap         73

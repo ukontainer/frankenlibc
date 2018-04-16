@@ -21,7 +21,7 @@ static void
 usage(char *name)
 {
 
-	printf("Usage: %s program [-ro|-rw] [files] [-- args]\n", name);
+	printf("Usage: %s program [-ro|-rw|-v (host):(mnt point)] [files] [-- args]\n", name);
 	exit(1);
 }
 
@@ -30,6 +30,8 @@ struct fdinfo {
 	int flags;
 	mode_t mode;
 };
+
+char *spec_9pfs = NULL;
 
 int
 main(int argc, char **argv)
@@ -120,6 +122,14 @@ main(int argc, char **argv)
 		if (strcmp(arg, "--") == 0) {
 			i++;
 			break;			
+		}
+		if (strcmp(arg, "-v") == 0) {
+			spec_9pfs = argv[++i];
+			if (i == argc) {
+				fprintf(stderr, "-v needs 9pfs mount information\n");
+				exit(1);
+			}
+			continue;
 		}
 		if (strchr(arg, ':')) {
 			char *colon = strchr(arg, ':');

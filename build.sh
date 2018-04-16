@@ -567,7 +567,7 @@ then
 	else
 		# sysroot does not work with linker eg NetBSD
 		appendvar COMPILER_FLAGS "-I${OUTDIR}/include -L${OUTDIR}/lib -lcrt1.o -B${OUTDIR}/lib"
-		appendvar COMPILER_FLAGS "-lc -nostdlib -static" # -lSystem -nodefaultlibs"
+		appendvar COMPILER_FLAGS "-nostdinc -lc -nostdlib -static" # -lSystem -nodefaultlibs"
 		printf "#!/bin/sh\n\nexec ${CC-cc} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
 	fi
 	COMPILER="${TOOL_PREFIX}-clang"

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -113,6 +114,15 @@ franken_lkl_get_json_config(void)
 	return json_cfg;
 }
 
+#define SIGINT 2
+#define SIGTERM 15
+static void term_9psv(int sig)
+{
+	char *pid = getenv("9PFSSV_PID");
+	if (pid) {
+		kill(atoi(pid), SIGTERM);
+	}
+}
 #endif
 
 void
@@ -162,8 +172,25 @@ __franken_fdinit()
 		case S_IFSOCK:
 			__franken_fd[fd].seek = 0;
 #ifdef MUSL_LIBC
-			/* notify virtio-mmio dev id */
-			{
+			char *tmpfd = getenv("9PFS_FD");
+			if (tmpfd) {
+				int lkl_9pfs_add(struct lkl_9pfs *fs);
+				if (fd == atoi(tmpfd)) {
+					struct lkl_9pfs fs;
+					fs.ops = NULL;
+					fs.dev = NULL;
+					fs.fd = atoi(tmpfd);
+					lkl_9pfs_add(&fs);
+
+					struct sigaction sa;
+
+					sigemptyset(&sa.sa_mask);
+					sa.sa_flags = 0;
+					sa.sa_handler = term_9psv;
+				}
+			}
+			if (!tmpfd || (fd != atoi(tmpfd))) {
+				/* notify virtio-mmio dev id */
 				lkl_netdev_rumpfd_create("franken-tap", fd);
 			}
 #endif
@@ -261,11 +288,7 @@ unmount_atexit(void)
 {
 	int ret __attribute__((__unused__));
 
-#ifdef MUSL_LIBC
-	ret = lkl_umount_dev("/etc", 0, 0, 1000);
-#else
 	ret = rump___sysimpl_unmount("/", MNT_FORCE);
-#endif
 }
 
 static int
@@ -468,6 +491,29 @@ __franken_fdinit_create()
 			break;
 		}
 	}
+
+#ifdef MUSL_LIBC
+	/* mount 9pfs */
+	if (getenv("9PFS_MNT")) {
+		char *mnt_point = getenv("9PFS_MNT");
+		int ret;
+
+		printf("mount 9p fs to %s\n", mnt_point);
+
+		ret = lkl_sys_mkdir(mnt_point, 0700);
+		ret = lkl_sys_mount("", mnt_point, "9p", 0, "trans=virtio,dfltgid=20,cache=mmap");
+		if (ret < 0)
+			printf("can't mount 9p fs err=%d\n", ret);
+
+		if (strcmp(mnt_point, "/") == 0) {
+			ret = lkl_sys_chroot(mnt_point);
+			if (ret) {
+				printf("can't chdir to %s: %s\n", mnt_point,
+				       lkl_strerror(ret));
+			}
+		}
+	}
+#endif
 
 	/* now some generic stuff */
 	mount_tmpfs();
