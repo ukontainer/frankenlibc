@@ -272,7 +272,11 @@ register_reg(int dev, int fd, int flags)
 		return fd;
 #endif
 
+#ifndef MUSL_LIBC
 	mkkey(key, num, "/dev/vfile", dev, fd);
+#else
+	memcpy(key, "/dev/console", 13);
+#endif
 	rump_pub_etfs_register(key, num, RUMP_ETFS_REG);
 	return rump___sysimpl_open(key, flags);
 }
