@@ -26,3 +26,10 @@ extern struct __fdtable __franken_fd[MAXFD];
 void __franken_fdinit(void);
 void __franken_fdinit_create(void);
 struct lkl_config *franken_lkl_get_json_config(void);
+#ifdef __APPLE__
+void darwin_mod_init_func(void);
+void darwin_mod_term_func(void);
+#else
+static void inline darwin_mod_init_func(void) {}
+static void inline darwin_mod_term_func(void) {}
+#endif

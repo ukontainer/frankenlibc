@@ -6,6 +6,7 @@ OBJ=$(OBJDIR)/thread.o
 OBJ+=$(OBJDIR)/errno.o
 HEADERS=thread.h
 INCLUDES=-I../include -I../ucontext -I../../librumpuser -I../../platform/include
+INCLUDES+= -I../ucontext/include
 CPPFLAGS+=-nostdinc $(INCLUDES)
 CFLAGS+=-fno-stack-protector
 DEPS=$(HEADERS)

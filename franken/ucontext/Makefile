@@ -2,12 +2,17 @@ COMPILE.c?=$(CC) -c $(CPPFLAGS) $(CFLAGS)
 COMPILE.S?=$(CC) -c $(CPPFLAGS) $(ASFLAGS)
 RUMPOBJ?=../../rumpobj
 OBJDIR=$(RUMPOBJ)/franken
+ifneq ($(OS),darwin)
 OBJ=$(OBJDIR)/makecontext.o $(OBJDIR)/getcontext.o $(OBJDIR)/swapcontext.o
-INCLUDES=-I../include -I.
 CPPFLAGS+=-nostdinc $(INCLUDES)
+endif
+INCLUDES=-I../include -I.
 CFLAGS+=-fno-stack-protector
 
 default:			$(OBJ)
+ifeq ($(OS),darwin)
+	$(MAKE) -C x86_64/darwin
+endif
 
 $(OBJDIR)/getcontext.o:		getcontext.c
 				@mkdir -p $(OBJDIR)

@@ -4,7 +4,8 @@ rumpkernel_buildrump()
 {
 
 export RUMP_PREFIX=${PWD}/librumpuser/
-export LKL_EXT_OPT="rumprun=no KOPT='buildrump=yes'"
+export KOPT='buildrump=yes'
+export LKL_EXT_OPT="rumprun=no ${KOPT}"
 
 ./buildrump/buildrump.sh \
 	-V RUMP_CURLWP=hypercall -V RUMP_LOCKS_UP=yes \
@@ -12,12 +13,7 @@ export LKL_EXT_OPT="rumprun=no KOPT='buildrump=yes'"
 	-F CFLAGS=-fno-stack-protector \
 	-k -s ${RUMPSRC} -o ${RUMPOBJ} -d ${RUMP} \
 	${BUILD_QUIET} ${STDJ} \
-	-F CPPFLAGS="${EXTRA_CPPFLAGS}" \
-	-F CFLAGS="${EXTRA_CFLAGS}" \
 	-F AFLAGS="${EXTRA_AFLAGS}" \
-	-F LDFLAGS="${EXTRA_LDFLAGS}" \
-	-F CWARNFLAGS="${EXTRA_CWARNFLAGS}" \
-	-F DBG="${F_DBG}" \
 	${EXTRAFLAGS} \
 	-l linux tools build install
 
@@ -34,7 +30,7 @@ rumpkernel_createuserlib()
 	LKL_HEADER="${RUMP}/"
 	CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
 	./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
-		    --disable-optimize --prefix=${RUMPOBJ}/musl
+		    --disable-optimize --prefix=${RUMPOBJ}/musl CFLAGS=${EXTRA_CFLAGS}
 	# XXX: bug of musl Makefile ?
 	${MAKE} obj/src/internal/version.h
 	${MAKE} install
@@ -63,6 +59,11 @@ rumpkernel_install_header()
 	cp -a ${RUMP}/include/* ${OUTDIR}/include
 	cp -a ${RUMPOBJ}/musl/include/* ${OUTDIR}/include
 
+	# only for mach-o
+	if [ "${OS}" = "darwin" ]; then
+		cd franken/ucontext && ln -sf /usr/include ./ && cd ../..
+	fi
+
 }
 
 [ ${OS} = "freebsd" ] && appendvar UNDEF "-U__FreeBSD__"
@@ -90,7 +91,8 @@ rumpkernel_explode_libc()
 
 rumpkernel_build_extra()
 {
-	${MAKE} -C rumpkernel/ RUMP_KERNEL=${RUMP_KERNEL}
+	CFLAGS="${EXTRA_CFLAGS}" \
+		${MAKE} -C rumpkernel/ RUMP_KERNEL=${RUMP_KERNEL}
 	cp rumpkernel/${RUMP_KERNEL}.o ${RUMPOBJ}/
 	${MAKE} -C rumpkernel/ clean RUMP_KERNEL=${RUMP_KERNEL}
 	return 0

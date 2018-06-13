@@ -1,6 +1,7 @@
 #include <stdint.h>
 #ifdef MUSL_LIBC
 #include <lkl.h>
+#include <lkl_config.h>
 #endif
 
 #include "init.h"
@@ -49,6 +50,8 @@ finifn()
 	for (; a>(uintptr_t)&__fini_array_start; a -= sizeof(void(*)()))
 		(*(void (**)())(a - sizeof(void(*)())))();
 	_fini();
+
+	darwin_mod_term_func();
 }
 
 int
@@ -93,6 +96,7 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 #else
 	__init_libc(envp, argv[0]);
 	__libc_start_init();
+	darwin_mod_init_func();
 #endif
 
 	/* see if we have any devices to init */

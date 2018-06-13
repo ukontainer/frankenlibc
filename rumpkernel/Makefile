@@ -5,7 +5,7 @@ RUMPDIR?=../../rump
 LIBDIR=$(RUMPDIR)/lib
 BINDIR?=$(RUMPDIR)/bin
 REXEC=${BINDIR}/rexec
-INCDIR=$(RUMPDIR)/include  -I../franken/ucontext -I../franken/thread -I../librumpuser
+INCDIR=$(RUMPDIR)/include  -I../franken/ucontext -I../franken/thread -I../librumpuser -I../franken/include -I../platform/include -I../franken/ucontext/include
 LDFLAGS+=-static
 CFLAGS+=-g -I${INCDIR}
 

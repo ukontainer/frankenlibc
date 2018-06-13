@@ -112,6 +112,7 @@ franken_lkl_get_json_config(void)
 {
 	return json_cfg;
 }
+
 #endif
 
 void
@@ -135,7 +136,9 @@ __franken_fdinit()
 		case S_IFREG:
 			__franken_fd[fd].seek = 1;
 #ifdef MUSL_LIBC
-			franken_lkl_load_json_config(fd);
+			/* config:json option should be larger than stderr(2) */
+			if (fd > 2)
+				franken_lkl_load_json_config(fd);
 #endif
 			break;
 		case S_IFBLK:
@@ -143,6 +146,8 @@ __franken_fdinit()
 #ifdef MUSL_LIBC
 			/* notify virtio-mmio dev id */
 			struct lkl_disk disk;
+			disk.ops = NULL;
+			disk.dev = NULL;
 			disk.fd = fd;
 			disk_id = lkl_disk_add(&disk);
 #endif
@@ -284,8 +289,8 @@ register_reg(int dev, int fd, int flags)
 static void
 register_net(int fd)
 {
-	char *addr, *mask, *gw;
 #ifndef MUSL_LIBC
+	char *addr, *mask, *gw;
 	char key[16], num[16];
 	int ret;
 	int sock;

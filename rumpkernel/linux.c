@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include "thread.h"
 
 void *rumprun_thread_gettcb(void)

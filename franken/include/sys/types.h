@@ -23,6 +23,8 @@ typedef unsigned short u_short, ushort;
 typedef unsigned u_int, uint;
 typedef unsigned long u_long, ulong;
 
+#ifndef __APPLE__
 typedef intptr_t register_t;
+#endif
 
 #endif

@@ -17,7 +17,11 @@
 #else
 #define MAP_ANON	0x1000
 #endif
+#ifndef __APPLE__
 #define MAP_STACK	0x2000
+#else
+#define MAP_STACK	0
+#endif
 
 #define MAP_ALIGNED(n)		((n) << MAP_ALIGNMENT_SHIFT)
 #define MAP_ALIGNMENT_SHIFT	24

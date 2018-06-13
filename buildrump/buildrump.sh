@@ -182,6 +182,8 @@ probeld ()
 		LD_FLAVOR=sun
 		SHLIB_MKMAP=no
 		appendvar_fs CCWRAPPER_MANGLE : '-Wl,-x'
+	elif echo $(LANG=C ${LD} -v 2>&1) | grep -q 'Apple TAPI' ; then
+		LD_FLAVOR=darwin
 	else
 		diagout 'output from linker:'
 		diagout -r ${linkervers}
@@ -206,7 +208,7 @@ probenm ()
 	echo 'void testsym(void); void testsym(void) {return;}' \
 	    | ${CC} ${EXTRA_CFLAGS} -x c -c - -o ${OBJDIR}/probenm.o
 	lastfield=$(${NM} -go ${OBJDIR}/probenm.o | awk '/testsym/{print $NF}')
-	if [ "${lastfield}" != 'testsym' ]; then
+	if [ "${lastfield}" != ${prefix}'testsym' ]; then
 		diagout nm: expected \"testsym\", got \"${lastfield}\"
 		die incompatible output from probing \"${NM}\"
 	fi
@@ -220,7 +222,7 @@ probear ()
 
 	# Check for GNU/BSD ar
 	if ! ${AR} -V 2>/dev/null | egrep '(GNU|BSD) ar' > /dev/null ; then
-		die Need GNU or BSD ar "(`type ${AR}`)"
+		echo Need GNU or BSD ar "(`type ${AR}`)"
 	fi
 }
 
@@ -262,7 +264,7 @@ doesitbuild ()
 
 	warnflags="-Wmissing-prototypes -Wstrict-prototypes -Wimplicit -Werror"
 	printf "${theprog}" \
-	    | ${CC} ${warnflags} ${EXTRA_LDFLAGS} ${EXTRA_CFLAGS}	\
+	    | ${CC} ${warnflags} ${EXTRA_CFLAGS}	\
 		-x c - -o /dev/null $* > /dev/null 2>&1
 }
 
@@ -941,8 +943,10 @@ evaltoolchain ()
 		;;
 	esac
 
-	if ! cppdefines __ELF__; then
+	if cppdefines __linux__ || cppdefines __NetBSD__; then
+	    if ! cppdefines __ELF__; then
 		${TITANMODE} || die ELF required as target object format
+	    fi
 	fi
 
 	if cppdefines __LP64__; then

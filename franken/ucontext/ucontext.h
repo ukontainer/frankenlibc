@@ -23,16 +23,23 @@
 #error "Unknown architecture"
 #endif
 
+#ifndef __APPLE__
 #define getcontext(c) __franken_getcontext(c)
 #define makecontext(c, f, i, a) __franken_makecontext(c, f, i, a)
 #define swapcontext(c1, c2) __franken_swapcontext(c1, c2)
+#endif
 
 /* Note the type of makecontext is not the standard, as this is
    not valid C. We only allow a single void* argument but define
    as if it takes no arguments as that is normal.
 */
 int  getcontext(ucontext_t *);
+#ifndef __APPLE__
 void makecontext(ucontext_t *, void (*)(void), int, void *);
 int  swapcontext(ucontext_t *, ucontext_t *);
+#else
+void makecontext(ucontext_t *, void (*)(void), int, ...);
+int  swapcontext(ucontext_t *, const ucontext_t *);
+#endif
 
 #endif

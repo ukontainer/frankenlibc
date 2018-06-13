@@ -7,7 +7,7 @@ BIN=$(BINDIR)/rexec
 OBJ=$(OBJDIR)/rexec.o
 INC=rexec.h
 DEPS=$(INC) $(OBJDIR) $(BINDIR)
-PLATFORMS=freebsd linux netbsd qemu-arm spike
+PLATFORMS=freebsd linux netbsd qemu-arm spike darwin
 
 default:		linux
 
@@ -29,8 +29,14 @@ $(OBJDIR)/netbsd.o:	netbsd.c $(DEPS)
 $(OBJDIR)/freebsd.o:	freebsd.c $(DEPS)
 			$(COMPILE.c) -o $@ freebsd.c
 
+$(OBJDIR)/darwin.o:	darwin.c $(DEPS)
+			$(COMPILE.c) -o $@ darwin.c
+
 linux:			$(OBJ) $(OBJDIR)/linux.o
 			$(CC) $(LDFLAGS) $(LDSTATIC) $(OBJ) $(OBJDIR)/linux.o -o $(BIN) $(LDLIBS)
+
+darwin:		$(OBJ) $(OBJDIR)/darwin.o
+			$(CC) $(LDFLAGS) $(LDSTATIC) $(OBJ) $(OBJDIR)/darwin.o -o $(BIN)
 
 freebsd:		$(OBJ) $(OBJDIR)/freebsd.o
 			$(CC) $(LDFLAGS) $(LDSTATIC) $(OBJ) $(OBJDIR)/freebsd.o -o $(BIN)

@@ -28,7 +28,9 @@ RUMPSRC=${PWD}/src
 OUTDIR=${PWD}/rump
 NCPU=1
 RUMP_KERNEL=netbsd
+prefix=
 
+export prefix
 export MAKE
 export RUMPSRC
 export RUMPOBJ
@@ -47,6 +49,12 @@ case ${TARGET} in
 *-freebsd*)
 	OS=freebsd
 	FILTER="-DCAPSICUM"
+	;;
+*-darwin*)
+	OS=darwin
+	prefix="_"
+	EXTRA_CFLAGS="-mmacosx-version-min=10.7.0"
+	EXTRA_AFLAGS="-mmacosx-version-min=10.7.0"
 	;;
 *)
 	OS=unknown
@@ -558,8 +566,9 @@ then
 		printf "#!/bin/sh\n\nexec ${CC-cc} --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
 	else
 		# sysroot does not work with linker eg NetBSD
-		appendvar COMPILER_FLAGS "-I${OUTDIR}/include -L${OUTDIR}/lib -B${OUTDIR}/lib"
-		printf "#!/bin/sh\n\nexec ${CC-cc} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
+		appendvar COMPILER_FLAGS "-I${OUTDIR}/include -L${OUTDIR}/lib -lcrt1.o -B${OUTDIR}/lib"
+		appendvar COMPILER_FLAGS "-lc -nostdlib -static" # -lSystem -nodefaultlibs"
+		printf "#!/bin/sh\n\nexec ${CC-cc} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
 	fi
 	COMPILER="${TOOL_PREFIX}-clang"
 	( cd ${BINDIR}
@@ -637,7 +646,10 @@ CC="${BINDIR}/${COMPILER}" \
 	${MAKE} ${STDJ} -C tests
 
 # test for executable stack
+if [ ${OS} != "darwin" ]
+then
 readelf -lW ${RUMPOBJ}/tests/hello | grep RWE 1>&2 && echo "WARNING: writeable executable section (stack?) found" 1>&2
+fi
 
 rumpkernel_build_test
 

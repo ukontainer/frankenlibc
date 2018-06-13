@@ -6,7 +6,7 @@ BINDIR?=$(RUMPDIR)/bin
 REXEC=${BINDIR}/rexec
 INCDIR=$(RUMPDIR)/include
 LDFLAGS+=-static
-CFLAGS+=-g
+CFLAGS+=
 
 DEPS=$(LIBDIR)/libc.a
 
