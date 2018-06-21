@@ -9,7 +9,7 @@ write_log()
 	    return
 	fi
 	/bin/echo "$* ($SECONDS sec)" 1>&1
-    else
+    elif [ "${BUILD_QUIET}" = "-qq" ] ; then
 	if [ "$1" = "-n" ] ; then
 	    SECONDS=0
 	    /bin/echo -n "=== $2" 1>&3
@@ -264,7 +264,7 @@ _cleanup()
 
 if [ -z ${BUILD_QUIET} ] ; then
     set -x
-else
+elif [ "${BUILD_QUIET}" = "-qq" ] ; then
     LOG_FILE=$(mktemp)
     exec 3>&1 1>>/dev/null 2>${LOG_FILE}
     trap _cleanup EXIT
