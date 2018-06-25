@@ -34,7 +34,7 @@ do_steps: &do_steps
         #make distclean
         rm -rf ~/junit
         # XXX: gawk is required since mawk in u16.04 raises an error "exceeds implementation size limit"
-        sudo apt-get update && sudo apt-get install -y zlib1g-dev gawk
+        sudo apt-get update && sudo apt-get install -y zlib1g-dev gawk bison flex
         # XXX: those can be in arm-baremetal/Dockerfile ?
         if [[ $OS == *qemu-arm* ]]; then
           sudo apt-get install -y gcc-arm-none-eabi qemu-system-arm libcap2-bin
