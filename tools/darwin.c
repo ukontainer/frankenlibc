@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <string.h>
 #include <signal.h>
+#include <net/if.h>
 
 #include "rexec.h"
 
@@ -127,6 +128,11 @@ os_extrafiles()
 int
 os_open(char *pre, char *post)
 {
+	struct ifreq ifr;
+	memset(&ifr, 0, sizeof(ifr));
+
+	int ifd;
+
 	if (strcmp(pre, "tap") == 0) {
 		char path[32];
 		int fd, on = 1;
@@ -144,6 +150,29 @@ os_open(char *pre, char *post)
 			fprintf(stderr, "ioctl(FIONBIO) %d\n", errno);
 			return -1;
 		}
+
+		/* make the tap up! */
+		ifd = socket(AF_INET, SOCK_DGRAM, 0);
+		if (ifd < 0) {
+			fprintf(stderr, "socket() for ioctl() failed\n");
+			perror("socket()");
+			return -1;
+		}
+		strncpy(ifr.ifr_name, post, IF_NAMESIZE - 1);
+
+		if (ioctl(ifd, SIOCGIFFLAGS, &ifr) < 0) {
+			fprintf(stderr, "ioctl(SIOCGIFFLAGS) %d\n", errno);
+			return -1;
+		}
+
+		ifr.ifr_flags |= IFF_UP | IFF_RUNNING;
+
+		if (ioctl(ifd, SIOCSIFFLAGS, &ifr) < 0) {
+			fprintf(stderr, "ioctl(SIOCSIFFLAGS) %d\n", errno);
+			return -1;
+		}
+		close(ifd);
+
 		return fd;
 	}
 
