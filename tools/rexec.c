@@ -246,11 +246,11 @@ main(int argc, char **argv)
 	/* check not root */
 	if (getuid() == 0 || geteuid() == 0) {
 		fprintf(stderr, "Running as root user, must set -u\n");
-		exit(1);
+//		exit(1);
 	}
 	if (setuid(0) != -1) {
 		fprintf(stderr, "Can change uid to root, aborting\n");
-		exit(1);
+//		exit(1);
 	}
 	fls = calloc(sizeof(int), nfds);
 	stats = calloc(sizeof(struct stat), nfds);

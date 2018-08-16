@@ -147,7 +147,7 @@ __franken_fdinit()
 			__franken_fd[fd].seek = 1;
 #ifdef MUSL_LIBC
 			/* config:json option should be larger than stderr(2) */
-			if (fd > 2)
+			if (fd > 3)
 				franken_lkl_load_json_config(fd);
 #endif
 			break;
@@ -395,6 +395,12 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 		       lkl_strerror(ret));
 	}
 
+	ret = lkl_sys_mknod("/dev/urandom", LKL_S_IFCHR | 0600, LKL_MKDEV(1, 9));
+	if (ret < 0 && ret != -EEXIST) {
+		printf("can't mknod /dev/urandom to: %s\n",
+		       lkl_strerror(ret));
+	}
+
 	atexit(unmount_atexit);
 	return ret;
 #else
@@ -459,8 +465,8 @@ __franken_fdinit_create()
 	   Pros and cons, may change if this is not convenient */
 
 	/* only fd 3 will be mounted as root file system */
-	if (__franken_fd[3].valid) {
-		fd = 3;
+	if (__franken_fd[4].valid) {
+		fd = 4;
 		switch (__franken_fd[fd].st.st_mode & S_IFMT) {
 		case S_IFREG:
 		case S_IFBLK:

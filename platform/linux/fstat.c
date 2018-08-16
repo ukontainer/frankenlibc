@@ -61,7 +61,7 @@ fstat(int fd, struct stat *st)
 		break;
 	case LINUX_S_IFREG:
 		/* pretend it is a block device */
-		if (fd == 3 || __franken_fd[fd].mounted == 1) {
+		if (fd == 4 || __franken_fd[fd].mounted == 1) {
 			lst.st_mode &= ~LINUX_S_IFMT;
 			lst.st_mode |= LINUX_S_IFBLK;
 		}
