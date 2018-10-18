@@ -48,7 +48,7 @@ fstat(int fd, struct stat *st)
 		}
 		break;
 	case DARWIN_S_IFREG:
-		if (fd == 3 || __franken_fd[fd].mounted == 1) {
+		if (fd == 4 || __franken_fd[fd].mounted == 1) {
 			dst.st_mode &= ~DARWIN_S_IFMT;
 			dst.st_mode |= DARWIN_S_IFBLK;
 		}
