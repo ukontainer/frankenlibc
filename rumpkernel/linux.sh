@@ -86,6 +86,8 @@ rumpkernel_explode_libc()
 	cd ${RUMPOBJ}/explode/musl
 	${AR-ar} x ${RUMPOBJ}/musl/lib/libc.a
 	cp ${RUMPOBJ}/${RUMP_KERNEL}.o ./
+	# XXX: ld.gold generates _end BSS symbol at link time
+	objcopy --redefine-sym _end=rumpns__end ${RUMPOBJ}/linux/tools/lkl/liblkl.a
 )
 	LIBC_DIR=musl
 
@@ -113,7 +115,7 @@ rumpkernel_build_test()
 	if [ ${OS} != "qemu-arm" ] ;
 	then
 		${MAKE} -C tests/iputils clean
-		CC="${BINDIR}/${COMPILER}" ${MAKE} -C tests/iputils ping ping6
+		CC="${BINDIR}/${COMPILER}" LDFLAGS="-static" ${MAKE} -C tests/iputils ping ping6
 		cp tests/iputils/ping tests/iputils/ping6 ${OBJDIR}/
 		${MAKE} -C tests/iputils clean
 	fi

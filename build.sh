@@ -36,6 +36,7 @@ export RUMPSRC
 export RUMPOBJ
 
 EXTRA_AFLAGS="-Wa,--noexecstack"
+EXTRA_CFLAGS="-fPIC"
 
 TARGET=$(LC_ALL=C ${CC-cc} -v 2>&1 | sed -n 's/^Target: //p' )
 
@@ -516,6 +517,10 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	for f in *.o
 	do
 		[ -f ../libc/$f ] && mv $f platform_$f
+		mkdir -p ldso
+		if [ "$f" = "dlstart.o" ] || [ "$f" = "dynlink.o" ]; then
+			mv $f ldso
+		fi
 	done
 
 	cd ${RUMPOBJ}/explode/rumpkernel
@@ -530,6 +535,11 @@ mkdir -p ${RUMPOBJ}/explode/platform
 
 	cd ${RUMPOBJ}/explode
 	${AR-ar} cr libc.a rumpkernel/rumpkernel.o rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
+	if [ "${HOST}" = "Linux" ]; then
+		${CC-cc} -fuse-ld=gold -Wl,-e,_dlstart -nostdlib -shared -o libc.so \
+			 rumpkernel/rumpkernel.o rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o \
+			 platform/*.o platform/ldso/*.o -lgcc -lgcc_eh
+	fi
 )
 
 write_log " done"
@@ -545,6 +555,11 @@ rumpkernel_install_extra_libs
 ${INSTALL-install} ${RUMP}/lib/*.o ${OUTDIR}/lib
 [ -f ${RUMP}/lib/libg.a ] && ${INSTALL-install} ${RUMP}/lib/libg.a ${OUTDIR}/lib
 ${INSTALL-install} ${RUMPOBJ}/explode/libc.a ${OUTDIR}/lib
+if [ "${HOST}" = "Linux" ]; then
+	${INSTALL-install} ${RUMPOBJ}/explode/libc.so ${OUTDIR}/lib
+	LDSO_PATHNAME="${OUTDIR}/lib/ld-frankenlibc-x86_64-linux.so.1"
+	WD=`pwd`; cd ${OUTDIR}/lib/; ln -sf libc.so ${LDSO_PATHNAME}; cd ${WD}
+fi
 
 # create toolchain wrappers
 # select these based on compiler defs
@@ -597,9 +612,10 @@ else
 		-e "s#@UNDEF@#${UNDEF}#g" \
 		-e "s#@STARTFILE@#${STARTFILE}#g" \
 		-e "s#@ENDFILE@#${ENDFILE}#g" \
+		-e "s#@LDSO@#${LDSO_PATHNAME}#g" \
 		-e "s/--sysroot=[^ ]*//" \
 		> ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec
-	printf "#!/bin/sh\n\nexec ${CC-cc} -specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec ${COMPILER_FLAGS} -static -nostdinc -isystem ${OUTDIR}/include \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-gcc
+	printf "#!/bin/sh\n\nexec ${CC-cc} -specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec ${COMPILER_FLAGS} -nostdinc -isystem ${OUTDIR}/include \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-gcc
 	COMPILER="${TOOL_PREFIX}-gcc"
 	( cd ${BINDIR}
 	  ln -s ${COMPILER} ${TOOL_PREFIX}-cc

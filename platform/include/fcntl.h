@@ -6,6 +6,7 @@
 #define O_RDWR          0x00000002
 #define O_ACCMODE       0x00000003
 #define O_NONBLOCK      0x00000004
+#define O_CLOEXEC       0x02000000
 
 #define F_DUPFD	0
 #define F_GETFD	1
