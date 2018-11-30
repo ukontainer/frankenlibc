@@ -332,7 +332,10 @@ rm -rf ${OUTDIR}
 
 FRANKEN_CFLAGS="-std=c99 -Wall -Wextra -Wno-missing-braces -Wno-unused-parameter -Wno-missing-field-initializers"
 
-if [ "${HOST}" = "Linux" ]; then appendvar FRANKEN_CFLAGS "-D_GNU_SOURCE"; fi
+if [ "${HOST}" = "Linux" ]; then
+	appendvar FRANKEN_CFLAGS "-D_GNU_SOURCE"
+	appendvar TOOLS_LDSTATIC "-static"
+fi
 if [ "${HOST}" = "FreeBSD" ]; then appendvar FRANKEN_CFLAGS "-D_BSD_SOURCE"; fi
 
 write_log "-n" "building tools.."
@@ -341,6 +344,7 @@ CPPFLAGS="${EXTRA_CPPFLAGS} ${FILTER}" \
         CFLAGS="${EXTRA_CFLAGS} ${DBG_F} ${FRANKEN_CFLAGS}" \
         LDFLAGS="${EXTRA_LDFLAGS}" \
         LDLIBS="${TOOLS_LDLIBS}" \
+        LDSTATIC="${TOOLS_LDSTATIC}" \
         RUMPOBJ="${RUMPOBJ}" \
         RUMP="${RUMP}" \
         ${MAKE} ${OS} -C tools
