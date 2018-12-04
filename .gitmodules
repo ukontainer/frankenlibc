@@ -3,4 +3,4 @@
 	url = git://github.com/ukontainer/lkl-linux
 [submodule "musl"]
 	path = musl
-	url = git://github.com/libos-nuse/musl.git
+	url = git://github.com/ukontainer/musl.git
