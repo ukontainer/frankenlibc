@@ -54,7 +54,7 @@ case ${TARGET} in
 *-darwin*)
 	OS=darwin
 	prefix="_"
-	EXTRA_CFLAGS="-mmacosx-version-min=10.7.0"
+	EXTRA_CFLAGS="-mmacosx-version-min=10.7.0 -Wno-unsupported-visibility"
 	EXTRA_AFLAGS="-mmacosx-version-min=10.7.0"
 	;;
 *)

@@ -30,7 +30,7 @@ rumpkernel_createuserlib()
 	LKL_HEADER="${RUMP}/"
 	CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
 	./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
-		    --disable-optimize --prefix=${RUMPOBJ}/musl CFLAGS=${EXTRA_CFLAGS}
+		    --disable-optimize --prefix=${RUMPOBJ}/musl CFLAGS="${EXTRA_CFLAGS}"
 	# XXX: bug of musl Makefile ?
 	${MAKE} obj/src/internal/version.h
 	${MAKE} install
