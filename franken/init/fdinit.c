@@ -523,6 +523,9 @@ __franken_fdinit_create()
 
 	/* now some generic stuff */
 	mount_tmpfs();
+	/* mount procfs */
+	rump___sysimpl_mkdir("/proc", 0777);
+	rump___sysimpl_mount50("proc", "/proc", 0, NULL, NULL);
 }
 
 void franken_recv_thread(int fd, void *thrid)
