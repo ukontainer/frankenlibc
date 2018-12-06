@@ -94,7 +94,7 @@ void __init_libc(char **, char *);
 void *__copy_tls(unsigned char *);
 
 __attribute__((__visibility__("hidden")))
-const char *__libc_get_version(void);
+extern const char __libc_version[];
 
 #define ADDEND_LIMIT 4096
 static size_t *saved_addends, *apply_addends_to;
@@ -1326,7 +1326,7 @@ _Noreturn void __dls3(size_t *sp)
 				"Version %s\n"
 				"Dynamic Program Loader\n"
 				"Usage: %s [options] [--] pathname%s\n",
-				__libc_get_version(), ldname,
+				__libc_version, ldname,
 				ldd_mode ? "" : " [args]");
 			_exit(1);
 		}
