@@ -122,6 +122,32 @@ extern void (*const __init_array_end)(void), (*const __fini_array_end)(void);
 weak_alias(__init_array_start, __init_array_end);
 weak_alias(__fini_array_start, __fini_array_end);
 
+static int vdprintf(int fd, const char *restrict fmt, va_list ap)
+{
+	int ret;
+	static char s[256];
+
+	ret = vsprintf(s, fmt, ap);
+	if (ret < 0)
+		return ret;
+
+	ret = write(fd, s, ret);
+	return ret;
+
+}
+
+static int dprintf(int fd, const char *restrict fmt, ...)
+{
+	int ret;
+	va_list ap;
+
+	va_start(ap, fmt);
+	ret = vdprintf(fd, fmt, ap);
+	va_end(ap);
+
+	return ret;
+}
+
 static int dl_strcmp(const char *l, const char *r)
 {
 	for (; *l==*r && *l; l++, r++);
@@ -854,6 +880,14 @@ static struct dso *load_library(const char *name, struct dso *needed_by)
 		}
 		return &ldso;
 	}
+
+	/* XXX: update if implemented */
+	dprintf(1, "load_library is not supported yet: \t%s => %s (%p)\n",
+		name, ldso.name,
+		ldso.base);
+	exit(-1);
+
+
 	if (strchr(name, '/')) {
 		pathname = name;
 		fd = open(name, O_RDONLY|O_CLOEXEC);
