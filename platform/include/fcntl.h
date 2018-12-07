@@ -8,11 +8,17 @@
 #define O_NONBLOCK      0x00000004
 #define O_CLOEXEC       0x02000000
 
+#define O_CREAT        0100
+#define O_TMPFILE 020200000
+#define O_LARGEFILE       0
+
 #define F_DUPFD	0
 #define F_GETFD	1
 #define F_SETFD	2
 #define F_GETFL	3
 #define F_SETFL	4
+
+#define FD_CLOEXEC 1
 
 #define fcntl(f, a, b) __platform_fcntl(f, a, b)
 

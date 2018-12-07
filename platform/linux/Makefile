@@ -11,6 +11,7 @@ OBJ+=$(CRTDIR)/crtend.o
 OBJ+=$(OBJDIR)/clock_getres.o
 OBJ+=$(OBJDIR)/clock_gettime.o
 OBJ+=$(OBJDIR)/clock_nanosleep.o
+OBJ+=$(OBJDIR)/close.o
 OBJ+=$(OBJDIR)/dlstart.o $(OBJDIR)/dynlink.o
 OBJ+=$(OBJDIR)/_exit.o
 OBJ+=$(OBJDIR)/fcntl.o
@@ -24,6 +25,7 @@ OBJ+=$(OBJDIR)/mmap.o
 OBJ+=$(OBJDIR)/mprotect.o
 OBJ+=$(OBJDIR)/munmap.o
 OBJ+=$(OBJDIR)/__libc_start_main.o
+OBJ+=$(OBJDIR)/open.o
 OBJ+=$(OBJDIR)/poll.o
 OBJ+=$(OBJDIR)/pread.o
 OBJ+=$(OBJDIR)/preadv.o
@@ -82,6 +84,10 @@ $(OBJDIR)/clock_nanosleep.o:	clock_nanosleep.c $(HEADERS)
 				@mkdir -p $(OBJDIR)
 				$(COMPILE.c) -o $@ clock_nanosleep.c
 
+$(OBJDIR)/close.o:		close.c $(HEADERS)
+				@mkdir -p $(OBJDIR)
+				$(COMPILE.c) -o $@ close.c
+
 $(OBJDIR)/dlstart.o:		dlstart.c $(HEADERS)
 				@mkdir -p $(OBJDIR)
 				$(COMPILE.c) -o $@ dlstart.c
@@ -137,6 +143,10 @@ $(OBJDIR)/mprotect.o:		mprotect.c
 $(OBJDIR)/munmap.o:		munmap.c $(HEADERS)
 				@mkdir -p $(OBJDIR)
 				$(COMPILE.c) -o $@ munmap.c
+
+$(OBJDIR)/open.o:		open.c $(HEADERS)
+				@mkdir -p $(OBJDIR)
+				$(COMPILE.c) -o $@ open.c
 
 $(OBJDIR)/poll.o:		poll.c $(HEADERS)
 				@mkdir -p $(OBJDIR)

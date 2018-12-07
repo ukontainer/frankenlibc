@@ -127,7 +127,7 @@ static int vdprintf(int fd, const char *restrict fmt, va_list ap)
 	int ret;
 	static char s[256];
 
-	ret = vsprintf(s, fmt, ap);
+	ret = rumpns_vsprintf(s, fmt, ap);
 	if (ret < 0)
 		return ret;
 
@@ -881,13 +881,6 @@ static struct dso *load_library(const char *name, struct dso *needed_by)
 		return &ldso;
 	}
 
-	/* XXX: update if implemented */
-	dprintf(1, "load_library is not supported yet: \t%s => %s (%p)\n",
-		name, ldso.name,
-		ldso.base);
-	exit(-1);
-
-
 	if (strchr(name, '/')) {
 		pathname = name;
 		fd = open(name, O_RDONLY|O_CLOEXEC);
@@ -924,6 +917,7 @@ static struct dso *load_library(const char *name, struct dso *needed_by)
 					prefix = "";
 					prefix_len = 0;
 				}
+#ifndef CONFIG_LKL
 				char etc_ldso_path[prefix_len + 1
 					+ sizeof "/etc/ld-musl-" LDSO_ARCH ".path"];
 				snprintf(etc_ldso_path, sizeof etc_ldso_path,
@@ -939,6 +933,7 @@ static struct dso *load_library(const char *name, struct dso *needed_by)
 				} else if (errno != ENOENT) {
 					sys_path = "";
 				}
+#endif
 			}
 			if (!sys_path) sys_path = "/lib:/usr/local/lib:/usr/lib";
 			fd = path_open(name, sys_path, buf, sizeof buf);

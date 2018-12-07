@@ -16,6 +16,8 @@
 #define write(f, b, c) __platform_write(f, b, c)
 #define lseek(f, o, r) __platform_lseek(f, o, r)
 #define pipe(fs) __platform_pipe(fs)
+#define open __platform_open
+#define close(f) __platform_close(f)
 
 void _exit(int) __attribute__ ((noreturn));
 int fsync(int);
@@ -26,4 +28,6 @@ ssize_t read(int, void *, size_t);
 ssize_t write(int, const void *, size_t);
 off_t lseek(int, off_t, int);
 int pipe(int fildes[2]);
+int open(const char *filename, int flags, ...);
+int close(int fd);
 #endif
