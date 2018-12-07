@@ -377,13 +377,18 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 	if (ret < 0)
 		printf("can't mount disk (%d) at %s. err=%d\n",
 			disk_id, mnt_point, ret);
-
 	/* chroot to the mounted volume (and create minimal fs) */
 	ret = lkl_sys_chroot(mnt_point);
+	if (ret) {
+		printf("can't chroot to %s: %s\n", mnt_point,
+		       lkl_strerror(ret));
+	}
+	ret = lkl_sys_chdir("/");
 	if (ret) {
 		printf("can't chdir to %s: %s\n", mnt_point,
 		       lkl_strerror(ret));
 	}
+
 	ret = lkl_sys_mkdir("/dev/", 0700);
 	if (ret < 0 && ret != -EEXIST) {
 		printf("can't mkdir /dev to: %s\n",
@@ -482,7 +487,7 @@ __franken_fdinit_create()
 		}
 	}
 
-	for (fd = 4; fd < MAXFD; fd++) {
+	for (fd = 5; fd < MAXFD; fd++) {
 		if (__franken_fd[fd].valid == 0)
 			break;
 		switch (__franken_fd[fd].st.st_mode & S_IFMT) {
