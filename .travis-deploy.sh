@@ -6,6 +6,8 @@ DESTDIR="/opt/rump"
 if [ $TRAVIS_OS_NAME == "osx" ] ; then
 	TMPCWD=`pwd`
 	cd $DESTDIR/lib && ln -sf libc.a libm.a && cd $TMPCWD
+	cd $DESTDIR/lib && ln -sf libc.a libpthread.a && cd $TMPCWD
+	cd $DESTDIR/lib && ln -sf libc.a libdl.a && cd $TMPCWD
 	cd $DESTDIR/bin && ln -sf x86_64-rumprun-linux-clang x86_64-rumprun-linux-gcc \
 	    && rm -f x86_64-rumprun-linux-cc && cd $TMPCWD
 fi
