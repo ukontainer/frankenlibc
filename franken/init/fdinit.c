@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -14,6 +15,8 @@
 #ifdef MUSL_LIBC
 #include <lkl.h>
 #endif
+
+extern char **environ;
 
 struct lkl_netdev *lkl_netdev_rumpfd_create(const char *ifname, int fd);
 
@@ -125,79 +128,96 @@ static void term_9psv(int sig)
 }
 #endif
 
-void
-__franken_fdinit()
+void __franken_fdinit()
 {
-	int fd;
+	int n, x, fd;
+	char *env, *var;
 	struct stat st;
 
-	/* iterate over numbered descriptors, stopping when one does not exist */
-	for (fd = 0; fd < MAXFD; fd++) {
-		memset(&st, 0, sizeof(struct stat));
-		if (fstat(fd, &st) == -1) {
-			__franken_fd[fd].valid = 0;
-			break;
+	/* retrieve fd from environ embedded by rexec. */
+
+
+
+	for (n = 0; n <= 2; n++) {
+		/* make STDIN, STDOUT, STDERR valid */
+			__franken_fd[fd].valid = 1;
+			__franken_fd[fd].flags = fcntl(fd, F_GETFL, 0);
+			memcpy(&__franken_fd[fd].st, &st, sizeof(struct stat));
+
+			__franken_fd[fd].seek = 0;
+	}
+
+        for (n = 0, env = *environ; env; env = *(environ + n++)) {
+
+		/* XXX* useing strchr() causes undefined reference... */
+		for (var = NULL, x = 0; x < strlen(env); x++) {
+			if (env[x] == '=') {
+				var = &env[x];
+				break;
+			}
 		}
-		__franken_fd[fd].valid = 1;
-		__franken_fd[fd].flags = fcntl(fd, F_GETFL, 0);
-		memcpy(&__franken_fd[fd].st, &st, sizeof(struct stat));
-		/* XXX move this to platform code */
-		switch (st.st_mode & S_IFMT) {
-		case S_IFREG:
-			__franken_fd[fd].seek = 1;
-#ifdef MUSL_LIBC
-			/* config:json option should be larger than stderr(2) */
-			if (fd > 3)
-				franken_lkl_load_json_config(fd);
-#endif
-			break;
-		case S_IFBLK:
+		if (var)
+			var += 1;
+		else
+			continue;
+
+		if (strncmp(env, "__RUMP_FDINFO_", 14) == 0||
+		    strncmp(env, "9PFS_FS", 7) == 0) {
+			fd = atoi(var);
+			__franken_fd[fd].valid = 1;
+			__franken_fd[fd].flags = fcntl(fd, F_GETFL, 0);
+			memcpy(&__franken_fd[fd].st, &st, sizeof(struct stat));
+		}
+
+		if (strncmp(env, "__RUMP_FDINFO_CONFIGJSON", 24) == 0) {
+			/* fd for config json */
+			franken_lkl_load_json_config(fd);
+		}
+
+		if (strncmp(env, "__RUMP_FDINFO_ROOT", 18) == 0 ||
+		    strncmp(env, "__RUMP_FDINFO_DISK_", 18) == 0) {
 			__franken_fd[fd].seek = 1;
 #ifdef MUSL_LIBC
 			/* notify virtio-mmio dev id */
-			struct lkl_disk disk;
-			disk.ops = NULL;
-			disk.dev = NULL;
-			disk.fd = fd;
-			disk_id = lkl_disk_add(&disk);
+                        struct lkl_disk disk;
+                        disk.ops = NULL;
+                        disk.dev = NULL;
+                        disk.fd = fd;
+                        disk_id = lkl_disk_add(&disk);
 #endif
-			break;
-		case S_IFCHR:
-			/* XXX Linux presents stdin as char device see notes to clean up */
+		}
+
+		if (strncmp(env, "__RUMP_FDINFO_NET_", 18) == 0) {
+			/* fd for network i/o.
+			 * create lkl_netdev for this rumpfd.
+			 */
 			__franken_fd[fd].seek = 0;
-			break;
-		case S_IFIFO:
-			__franken_fd[fd].seek = 0;
-			break;
-		case S_IFSOCK:
-			__franken_fd[fd].seek = 0;
+			lkl_netdev_rumpfd_create(NULL, fd);
+		}
+
 #ifdef MUSL_LIBC
+		if (strcmp(env, "9PFS_FD") == 0) {
+			__franken_fd[fd].seek = 0;
+
+			int lkl_9pfs_add(struct lkl_9pfs *fs);
+
 			char *tmpfd = getenv("9PFS_FD");
-			if (tmpfd) {
-				int lkl_9pfs_add(struct lkl_9pfs *fs);
-				if (fd == atoi(tmpfd)) {
-					struct lkl_9pfs fs;
-					fs.ops = NULL;
-					fs.dev = NULL;
-					fs.fd = atoi(tmpfd);
-					lkl_9pfs_add(&fs);
+			struct lkl_9pfs fs;
+			fs.ops = NULL;
+			fs.dev = NULL;
+			fs.fd = atoi(tmpfd);
+			lkl_9pfs_add(&fs);
 
-					struct sigaction sa;
-
-					sigemptyset(&sa.sa_mask);
-					sa.sa_flags = 0;
-					sa.sa_handler = term_9psv;
-				}
-			}
-			if (!tmpfd || (fd != atoi(tmpfd))) {
-				/* notify virtio-mmio dev id */
-				lkl_netdev_rumpfd_create("franken-tap", fd);
-			}
+			struct sigaction sa;
+			sigemptyset(&sa.sa_mask);
+			sa.sa_flags = 0;
+			sa.sa_handler = term_9psv;
 #endif
-			break;
 		}
 	}
 }
+
+
 
 /* XXX would be much nicer to build these functions against NetBSD libc headers, but at present
    they are not built, or installed, yet. Need to reorder the build process */
@@ -436,11 +456,13 @@ register_block(int dev, int fd, int flags, off_t size, int root)
 #endif
 }
 
+
 void
 __franken_fdinit_create()
 {
-	int fd;
+	int fd, ret;
 	int n_reg = 0, n_block = 0;
+	char *env;
 
 	if (__franken_fd[0].valid) {
 		fd = register_reg(n_reg++, 0, O_RDONLY);
@@ -469,33 +491,34 @@ __franken_fdinit_create()
 	   but this also allows us not to mount a block device.
 	   Pros and cons, may change if this is not convenient */
 
-	/* only fd 3 will be mounted as root file system */
-	if (__franken_fd[4].valid) {
-		fd = 4;
-		switch (__franken_fd[fd].st.st_mode & S_IFMT) {
-		case S_IFREG:
-		case S_IFBLK:
-			if (register_block(n_block++, fd,
-			    __franken_fd[fd].flags & O_ACCMODE,
-			    __franken_fd[fd].st.st_size, 1) == 0) {
+
+	/* find rootfs fd and make it mounted */
+	env = getenv("__RUMP_FDINFO_ROOT");
+	if (env) {
+		fd = atoi(env);
+		if (__franken_fd[fd].valid) {
+			ret = register_block(n_block++, fd,
+					     __franken_fd[fd].flags
+					     & O_ACCMODE,
+					     __franken_fd[fd].st.st_size, 1);
+			if (ret == 0)
 				__franken_fd[fd].mounted = 1;
-			}
-			break;
-		case S_IFSOCK:
-			register_net(fd);
-			break;
 		}
 	}
+
 
 	for (fd = 5; fd < MAXFD; fd++) {
 		if (__franken_fd[fd].valid == 0)
 			break;
 		switch (__franken_fd[fd].st.st_mode & S_IFMT) {
 		case S_IFREG:
-			fd = register_reg(n_reg++, fd, __franken_fd[fd].flags & O_ACCMODE);
+			fd = register_reg(n_reg++, fd,
+					  __franken_fd[fd].flags & O_ACCMODE);
 			break;
 		case S_IFBLK:
-			register_block(n_block++, fd, __franken_fd[fd].flags & O_ACCMODE, __franken_fd[fd].st.st_size, 0);
+			register_block(n_block++, fd,
+				       __franken_fd[fd].flags & O_ACCMODE,
+				       __franken_fd[fd].st.st_size, 0);
 			break;
 		case S_IFSOCK:
 			register_net(fd);
@@ -512,7 +535,8 @@ __franken_fdinit_create()
 		printf("mount 9p fs to %s\n", mnt_point);
 
 		ret = lkl_sys_mkdir(mnt_point, 0700);
-		ret = lkl_sys_mount("", mnt_point, "9p", 0, "trans=virtio,dfltgid=20,cache=mmap");
+		ret = lkl_sys_mount("", mnt_point, "9p", 0,
+				    "trans=virtio,dfltgid=20,cache=mmap");
 		if (ret < 0)
 			printf("can't mount 9p fs err=%d\n", ret);
 

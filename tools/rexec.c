@@ -25,13 +25,38 @@ usage(char *name)
 	exit(1);
 }
 
-struct fdinfo {
-	int fd;
-	int flags;
-	mode_t mode;
-};
 
 char *spec_9pfs = NULL;
+
+struct fdinfo {
+	int fd;
+	char name[64];
+};
+
+int fdinfo_num = 0;
+struct fdinfo fdinfo_list[64];
+
+#define FDINFO_NAME_CONFIGJSON	"__RUMP_FDINFO_CONFIGJSON"
+#define FDINFO_ENV_PREFIX_NET	"__RUMP_FDINFO_NET_"
+#define FDINFO_ENV_PREFIX_DISK	"__RUMP_FDINFO_DISK_"
+#define FDINFO_ENV_PREFIX_ROOT	"__RUMP_FDINFO_ROOT"
+
+/*
+ * For rumpfd, Env var is __RUMP_FDINFO_NET_tap0=4 for exmaple.
+ * For disk, Env var is __RUMP_FDINFO_DISK_disk.img=3 for exmaple.
+ * For config.json, Env var is __RUMP_FDINFO_CONFIGJSON=2 for exmaple.
+ */
+void fdinfo_setenv(void)
+{
+	int n;
+	char fdstr[8];
+	for (n = 0; n < fdinfo_num; n++) {
+		snprintf(fdstr, sizeof(fdstr), "%d", fdinfo_list[n].fd);
+		setenv(fdinfo_list[n].name, fdstr, 1);
+		fprintf(stdout, "setenv: %s=%s\n", fdinfo_list[n].name, fdstr);
+	}
+}
+
 
 int
 main(int argc, char **argv)
@@ -136,10 +161,30 @@ main(int argc, char **argv)
 			char *pre;
 
 			pre = strndup(arg, colon - arg);
-			fd = colon_open(pre, &colon[1]);
-			free(pre);
-			if (fd == -1)
+			fd = colon_open(pre, &colon[1], mode);
+
+			if (fd == -1) {
+				free(pre);
 				continue;
+			}
+
+			/* XXX:FDINFO */
+			if (strcmp(pre, "config") == 0) {
+				strcpy(fdinfo_list[fdinfo_num].name,
+				       FDINFO_NAME_CONFIGJSON);
+				fdinfo_list[fdinfo_num].fd = fd;
+				fdinfo_num++;
+			} else if (strcmp(pre, "tun") == 0 ||
+				   strcmp(pre, "packet") == 0 ||
+				   strcmp(pre, "docker") == 0)  {
+
+				sprintf(fdinfo_list[fdinfo_num].name, "%s%s",
+					 FDINFO_ENV_PREFIX_NET, &colon[1]);
+				fdinfo_list[fdinfo_num].fd = fd;
+				fdinfo_num++;
+			}
+
+			free(pre);
 		} else {
 			fd = open(arg, mode);
 			if (fd == -1) {
@@ -156,6 +201,12 @@ main(int argc, char **argv)
 				perror("fcntl");
 				exit(1);
 			}
+
+			/* XXX:FDINFO for disk */
+			sprintf(fdinfo_list[fdinfo_num].name, "%s%s",
+				FDINFO_ENV_PREFIX_DISK, arg);
+			fdinfo_list[fdinfo_num].fd = fd;
+			fdinfo_num++;
 		}
 	}
 
@@ -279,6 +330,8 @@ main(int argc, char **argv)
 	free(fls);
 	free(stats);
 
+	fdinfo_setenv();
+
 	ret = filter_load_exec(program, pargs, environ);
 	if (ret < 0) {
 		fprintf(stderr, "filter_load_exec failed\n");
@@ -289,7 +342,7 @@ main(int argc, char **argv)
 }
 
 int
-colon_open(char *pre, char *post)
+colon_open(char *pre, char *post, int mode)
 {
 	int fd, ret;
 
@@ -331,6 +384,36 @@ colon_open(char *pre, char *post)
 			fprintf(stderr, "config open error %s\n", post);
 			exit(1);
 		}
+		return fd;
+	}
+
+	if (strcmp(pre, "rootfs") == 0) {
+		int fl;
+
+		/* disk for rootfs */
+		fd = open(post, mode);
+		if (fd == -1) {
+			fprintf(stderr, "rootfs img open %s\n",
+				strerror(errno));
+			exit(1);
+		}
+		fl = fcntl(fd, F_GETFL);
+		if (fl == -1) {
+			perror("fcntl");
+			exit(1);
+		}
+		ret = fcntl(fd, F_SETFL, fl | O_NONBLOCK);
+		if (ret == -1) {
+			perror("fcntl");
+			exit(1);
+		}
+
+		/* XXX:FDINFO for root disk */
+		sprintf(fdinfo_list[fdinfo_num].name, "%s",
+			FDINFO_ENV_PREFIX_ROOT);
+		fdinfo_list[fdinfo_num].fd = fd;
+		fdinfo_num++;
+
 		return fd;
 	}
 

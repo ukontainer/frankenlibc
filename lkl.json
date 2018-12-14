@@ -6,7 +6,7 @@
             "ip": "10.1.0.2",
             "masklen": "24",
             "mac": "00:0d:0b:94:4e:97",
-            "param": "4",
+            "name": "tap0",
             "type": "rumpfd"
         }
     ],

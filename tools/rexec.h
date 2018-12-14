@@ -6,7 +6,7 @@ int filter_fd(int, int, struct stat *);
 int filter_load_exec(char *, char **, char **);
 void uuid(void);
 int emptydir(void);
-int colon_open(char *, char *);
+int colon_open(char *, char *, int mode);
 int os_emptydir(void);
 int os_pre(void);
 int os_extrafiles(void);

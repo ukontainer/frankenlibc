@@ -21,12 +21,12 @@ run-simple:		$(OBJ)
 run:			$(OBJ)
 			dd if=/dev/zero of=disk.img bs=1024 count=20480
 			mkfs.ext4 -F disk.img
-			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/hello disk.img
+			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/hello rootfs:disk.img
 			${REXEC} $(OBJDIR)/ctor disk.img
-			echo frankenlibc | ${REXEC} $(OBJDIR)/cat disk.img
+			echo frankenlibc | ${REXEC} $(OBJDIR)/cat rootfs:disk.img
 ifneq ($(wildcard $(OBJDIR)/ping),)
-			${REXEC} ${OBJDIR}/ping disk.img -- -c 3 127.0.0.1
-			${REXEC} ${OBJDIR}/ping6 disk.img -- -c 3 ::1
+			${REXEC} ${OBJDIR}/ping rootfs:disk.img -- -c 3 127.0.0.1
+			${REXEC} ${OBJDIR}/ping6 rootfs:disk.img -- -c 3 ::1
 endif
 			rm -f disk.img
 
