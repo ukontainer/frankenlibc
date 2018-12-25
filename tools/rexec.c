@@ -175,6 +175,7 @@ main(int argc, char **argv)
 				fdinfo_list[fdinfo_num].fd = fd;
 				fdinfo_num++;
 			} else if (strcmp(pre, "tun") == 0 ||
+				   strcmp(pre, "tap") == 0 ||
 				   strcmp(pre, "packet") == 0 ||
 				   strcmp(pre, "docker") == 0)  {
 
