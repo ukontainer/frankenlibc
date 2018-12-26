@@ -68,6 +68,10 @@ struct darwin_stat { /* when _DARWIN_FEATURE_64_BIT_INODE is defined */
 	int64_t         st_qspare[2];     /* RESERVED: DO NOT USE! */
 };
 
+#define major(x)        ((int32_t)(((u_int32_t)(x) >> 24) & 0xff))
+#define minor(x)        ((int32_t)((x) & 0xffffff))
+#define makedev(x,y)    ((darwin_dev_t)(((x) << 24) | (y)))
+
 
 #define		IF_NAMESIZE	16
 #define		IFNAMSIZ	IF_NAMESIZE

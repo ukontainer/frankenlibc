@@ -35,20 +35,9 @@ fstat(int fd, struct stat *st)
 		__ioctl(fd, DIOCGMEDIASIZE, &dst.st_size);
 		break;
 	case DARWIN_S_IFCHR:
-		/* XXX this only works fine with tuntaposx */
-		/* XXX: this degrades to detect fd0,1,2 as sock... */
-		ret = __ioctl(fd, FIOASYNC, &dummy);
-		if ((ret == -1) && (errno == ENOTTY)) {
-			/* say we are a "socket" ie network device */
-			dst.st_mode = DARWIN_S_IFSOCK;
-			/* add to poll */
-			__platform_pollfd[__platform_npoll].fd = fd;
-			__platform_pollfd[__platform_npoll].events = POLLIN | POLLPRI;
-			__platform_npoll++;
-		}
 		break;
 	case DARWIN_S_IFREG:
-		if (fd == 4 || __franken_fd[fd].mounted == 1) {
+		if (__franken_fd[fd].mounted == 1) {
 			dst.st_mode &= ~DARWIN_S_IFMT;
 			dst.st_mode |= DARWIN_S_IFBLK;
 		}
