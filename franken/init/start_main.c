@@ -1,10 +1,10 @@
 #include <stdint.h>
+#include "init.h"
 #ifdef MUSL_LIBC
 #include <lkl.h>
 #include <lkl_config.h>
 #endif
 
-#include "init.h"
 
 void rump_boot_setsigmodel(int);
 int rump_init(void);
