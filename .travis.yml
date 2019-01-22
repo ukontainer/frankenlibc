@@ -18,18 +18,20 @@ jobs:
         - travis_wait 30 git submodule update --init --depth=50
     - stage: test
       os: osx
-      #osx_image: xcode9.3beta
+      osx_image: xcode10.1
       before_install:
         - travis_wait 30 git submodule update --init --depth=50
         - mkdir -p ~/.local/bin
         - mkdir ~/junit
         - export PATH=/usr/local/opt/ccache/libexec:$HOME/.local/bin:$PATH
         - HOMEBREW_NO_AUTO_UPDATE=1 brew install gnu-sed ccache e2fsprogs
+        - HOMEBREW_NO_AUTO_UPDATE=1 brew install binutils
+        - brew upgrade binutils
         - pip install --user yamlish junit_xml
         - ln -sf /usr/local/bin/gsed ~/.local/bin/sed
         - ln -sf /usr/local/bin/gdate ~/.local/bin/date
         - ln -sf /usr/local/opt/e2fsprogs/sbin/mkfs.ext4 ~/.local/bin/
-        - cp linux/tools/lkl/bin/x86_64-apple-darwin17.4.0-objcopy ~/.local/bin/objcopy
+        - ln -sf /usr/local/opt/binutils/bin/objcopy ~/.local/bin/objcopy
     - stage: downstream
       script: bash -ex ./.travis-trigger.sh ukontainer/rumprun-packages lkl-musl
       os: linux

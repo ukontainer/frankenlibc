@@ -87,7 +87,9 @@ rumpkernel_explode_libc()
 	${AR-ar} x ${RUMPOBJ}/musl/lib/libc.a
 	cp ${RUMPOBJ}/${RUMP_KERNEL}.o ./
 	# XXX: ld.gold generates _end BSS symbol at link time
-	objcopy --redefine-sym _end=rumpns__end ${RUMPOBJ}/linux/tools/lkl/liblkl.a
+	if [ ${OS} = "linux" ] ; then
+		objcopy --redefine-sym _end=rumpns__end ${RUMPOBJ}/linux/tools/lkl/liblkl.a
+	fi
 )
 	LIBC_DIR=musl
 
