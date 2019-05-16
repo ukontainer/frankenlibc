@@ -521,10 +521,6 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	for f in *.o
 	do
 		[ -f ../libc/$f ] && mv $f platform_$f
-		mkdir -p ldso
-		if [ "$f" = "dlstart.o" ] || [ "$f" = "dynlink.o" ]; then
-			mv $f ldso
-		fi
 	done
 
 	cd ${RUMPOBJ}/explode/rumpkernel
@@ -542,7 +538,7 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	if [ "${HOST}" = "Linux" ]; then
 		${CC-cc} -fuse-ld=gold -Wl,-e,_dlstart -nostdlib -shared -o libc.so \
 			 rumpkernel/rumpkernel.o rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o \
-			 platform/*.o platform/ldso/*.o -lgcc -lgcc_eh
+			 platform/*.o ${LIBC_DIR}/*.lo -lgcc -lgcc_eh
 	fi
 )
 

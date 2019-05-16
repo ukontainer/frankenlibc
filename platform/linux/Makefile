@@ -12,7 +12,6 @@ OBJ+=$(OBJDIR)/clock_getres.o
 OBJ+=$(OBJDIR)/clock_gettime.o
 OBJ+=$(OBJDIR)/clock_nanosleep.o
 OBJ+=$(OBJDIR)/close.o
-OBJ+=$(OBJDIR)/dlstart.o $(OBJDIR)/dynlink.o
 OBJ+=$(OBJDIR)/_exit.o
 OBJ+=$(OBJDIR)/fcntl.o
 OBJ+=$(OBJDIR)/fstat.o
@@ -87,14 +86,6 @@ $(OBJDIR)/clock_nanosleep.o:	clock_nanosleep.c $(HEADERS)
 $(OBJDIR)/close.o:		close.c $(HEADERS)
 				@mkdir -p $(OBJDIR)
 				$(COMPILE.c) -o $@ close.c
-
-$(OBJDIR)/dlstart.o:		dlstart.c $(HEADERS)
-				@mkdir -p $(OBJDIR)
-				$(COMPILE.c) -o $@ dlstart.c
-
-$(OBJDIR)/dynlink.o:		dynlink.c $(HEADERS)
-				@mkdir -p $(OBJDIR)
-				$(COMPILE.c) -o $@ dynlink.c
 
 $(OBJDIR)/_exit.o:		_exit.c $(HEADERS)
 				@mkdir -p $(OBJDIR)
