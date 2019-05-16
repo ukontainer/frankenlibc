@@ -10,7 +10,7 @@ CFLAGS+=
 
 DEPS=$(LIBDIR)/libc.a
 
-OBJ=$(OBJDIR)/hello $(OBJDIR)/ctor $(OBJDIR)/cat #$(OBJDIR)/hello-pthread
+OBJ=$(OBJDIR)/hello $(OBJDIR)/ctor $(OBJDIR)/cat $(OBJDIR)/fork-test #$(OBJDIR)/hello-pthread
 
 default:		$(OBJ)
 
@@ -28,6 +28,7 @@ ifneq ($(wildcard $(OBJDIR)/ping),)
 			${REXEC} ${OBJDIR}/ping rootfs:disk.img -- -c 3 127.0.0.1
 			${REXEC} ${OBJDIR}/ping6 rootfs:disk.img -- -c 3 ::1
 endif
+			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/fork-test rootfs:disk.img || true
 			rm -f disk.img
 
 $(OBJDIR)/ctor:		ctor.c $(DEPS)
@@ -46,6 +47,10 @@ $(OBJDIR)/hello-pthread: hello-pthread.c $(DEPS)
 $(OBJDIR)/cat:		cat.c $(DEPS)
 			@mkdir -p $(OBJDIR)
 			${CC} ${CFLAGS} ${LDFLAGS} -o $@ cat.c
+
+$(OBJDIR)/fork-test:	fork-test.c $(DEPS)
+			@mkdir -p $(OBJDIR)
+			${CC} ${CFLAGS} ${LDFLAGS} -o $@ fork-test.c
 
 .PHONY:			test clean
 clean:		

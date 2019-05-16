@@ -140,11 +140,11 @@ void __franken_fdinit()
 
 	for (n = 0; n <= 2; n++) {
 		/* make STDIN, STDOUT, STDERR valid */
-			__franken_fd[fd].valid = 1;
-			__franken_fd[fd].flags = fcntl(fd, F_GETFL, 0);
-			memcpy(&__franken_fd[fd].st, &st, sizeof(struct stat));
+		__franken_fd[n].valid = 1;
+		__franken_fd[n].flags = fcntl(n, F_GETFL, 0);
+		memcpy(&__franken_fd[n].st, &st, sizeof(struct stat));
 
-			__franken_fd[fd].seek = 0;
+		__franken_fd[n].seek = 0;
 	}
 
         for (n = 0, env = *environ; env; env = *(environ + n++)) {

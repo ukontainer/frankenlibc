@@ -50,6 +50,16 @@ __libc_start_main(int (*main)(int,char **,char **), int argc, char **argv)
 	__pagesize = aux[AT_PAGESZ];
 	__random = (uint8_t *)aux[AT_RANDOM];
 
+#define AT_PARENT_SYSCALL	27
+	/* This is forked (child) process */
+	if (aux[AT_PARENT_SYSCALL]) {
+		extern long (*lkl_parent_syscall)(long no, long *params);
+		lkl_parent_syscall = aux[AT_PARENT_SYSCALL];
+		main(argc, argv, envp);
+		exit(0);
+		return 0;
+	}
+
 	/* init tls; gcc needs this even for some non-tls using programs */
 	__platform_set_thread_area(builtin_tls);
 
