@@ -37,6 +37,7 @@
 
 #define mmap(a, b, c, d, e, f) __platform_mmap(a, b, c, d, e, f)
 #define munmap(a, b) __platform_munmap(a, b)
+#define mprotect(a, b, c) __platform_mprotect(a, b, c)
 
 void *mmap(void *, size_t, int, int, int, off_t);
 int munmap(void *, size_t);

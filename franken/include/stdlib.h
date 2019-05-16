@@ -6,6 +6,12 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
+#define posix_memalign(a,b,c) __franken_posix_memalign(a,b,c)
+#define malloc(a) __franken_malloc(a)
+#define calloc(a,b) __franken_calloc(a,b)
+#define realloc(a,b) __franken_realloc(a,b)
+#define free(a) __franken_free(a)
+
 void abort(void) __attribute__ ((noreturn));
 int atoi(const char *);
 int atexit(void (*)(void));

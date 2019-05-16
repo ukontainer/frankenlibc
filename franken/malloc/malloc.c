@@ -469,6 +469,19 @@ realloc(void *cp, size_t nbytes)
 	return np;
 }
 
+char *
+strdup(const char *s)
+{
+	size_t len = strlen(s) + 1;
+	char *str = malloc(len);
+
+	if (!str)
+		return NULL;
+	strcpy(str, s);
+
+	return str;
+}
+
 #ifdef MSTATS
 /*
  * mstats - print out statistics about malloc
