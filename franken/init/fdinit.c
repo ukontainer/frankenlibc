@@ -162,7 +162,7 @@ void __franken_fdinit()
 			continue;
 
 		if (strncmp(env, "__RUMP_FDINFO_", 14) == 0||
-		    strncmp(env, "9PFS_FS", 7) == 0) {
+		    strncmp(env, "9PFS_FD", 7) == 0) {
 			fd = atoi(var);
 			__franken_fd[fd].valid = 1;
 			__franken_fd[fd].flags = fcntl(fd, F_GETFL, 0);
@@ -196,7 +196,7 @@ void __franken_fdinit()
 		}
 
 #ifdef MUSL_LIBC
-		if (strcmp(env, "9PFS_FD") == 0) {
+		if (strncmp(env, "9PFS_FD", 7) == 0) {
 			__franken_fd[fd].seek = 0;
 
 			int lkl_9pfs_add(struct lkl_9pfs *fs);
@@ -531,22 +531,36 @@ __franken_fdinit_create()
 	if (getenv("9PFS_MNT")) {
 		char *mnt_point = getenv("9PFS_MNT");
 		int ret;
+		char buf[64];
 
 		printf("mount 9p fs to %s\n", mnt_point);
 
-		ret = lkl_sys_mkdir(mnt_point, 0700);
-		ret = lkl_sys_mount("", mnt_point, "9p", 0,
-				    "trans=virtio,dfltgid=20,cache=mmap");
-		if (ret < 0)
-			printf("can't mount 9p fs err=%d\n", ret);
-
 		if (strcmp(mnt_point, "/") == 0) {
-			ret = lkl_sys_chroot(mnt_point);
+			ret = lkl_sys_mkdir("/mnt", 0700);
+			ret = lkl_sys_mount("", "/mnt", "9p", 0,
+					    "trans=virtio,cache=mmap");
+			if (ret < 0)
+				printf("can't mount 9p fs err=%d\n", ret);
+
+			ret = lkl_sys_chroot("/mnt");
+			if (ret) {
+				printf("can't chdir to %s: %s\n", mnt_point,
+				       lkl_strerror(ret));
+			}
+			ret = lkl_sys_chdir("/");
 			if (ret) {
 				printf("can't chdir to %s: %s\n", mnt_point,
 				       lkl_strerror(ret));
 			}
 		}
+		else {
+			ret = lkl_sys_mkdir(mnt_point, 0700);
+			ret = lkl_sys_mount("", mnt_point, "9p", 0,
+					    "trans=virtio,cache=mmap");
+			if (ret < 0)
+				printf("can't mount 9p fs err=%d\n", ret);
+		}
+		printf("mount 9p fs done\n");
 	}
 #endif
 
@@ -555,6 +569,9 @@ __franken_fdinit_create()
 	/* mount procfs */
 	rump___sysimpl_mkdir("/proc", 0777);
 	rump___sysimpl_mount50("proc", "/proc", 0, NULL, NULL);
+	/* mount sysfs */
+	rump___sysimpl_mkdir("/sys", 0777);
+	rump___sysimpl_mount50("sysfs", "/sys", 0, NULL, NULL);
 }
 
 void franken_recv_thread(int fd, void *thrid)
