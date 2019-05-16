@@ -81,6 +81,7 @@ os_extrafiles()
 	char *fssv_argv[] = {FSSV_EXE, "-h", FSSV_PATH, host, NULL};
 	char buf[16];
 
+#if 0
 	unlink(FSSV_PATH);
 	/* XXX: may reimplemented w/o fd (shmem instead?) */
 	/* XXX: need killing child when parent terminates */
@@ -114,6 +115,28 @@ os_extrafiles()
 		perror("connect");
 		exit(1);
 	}
+#else
+	/* parent process */
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {
+		perror("socket");
+		exit(1);
+	}
+
+	int val = 0;
+	ioctl(sock, FIONBIO, &val);
+
+	static struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+	};
+	sin.sin_port = htons(5640); /* 9pfs */
+	sin.sin_addr.s_addr = inet_addr("127.0.0.1");
+	if (connect(sock, (const struct sockaddr *)&sin,
+		    sizeof(sin))) {
+		perror("connect");
+		exit(1);
+	}
+#endif
 
 	/* pass to mount point */
 	setenv("9PFS_MNT", guest, 0);

@@ -33,6 +33,7 @@
 #define	SYS_writev         121
 #define	SYS_pread          153
 #define	SYS_pwrite         154
+#define	SYS_sigreturn      184
 #define	SYS_fstat          189
 #define	SYS_mmap           197
 #define	SYS_lseek          199

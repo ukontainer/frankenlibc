@@ -22,6 +22,7 @@ OBJ+=$(OBJDIR)/write.o $(OBJDIR)/writev.o
 OBJ+=$(OBJDIR)/_start1.o $(OBJDIR)/_exit.o
 OBJ+=$(OBJDIR)/sysctl.o
 OBJ+=$(OBJDIR)/sigaction.o $(OBJDIR)/sigprocmask.o
+OBJ+= $(OBJDIR)/_sigtramp.o $(OBJDIR)/sigreturn.o
 OBJ+=$(OBJDIR)/mach_absolute_time.o
 HEADERS=syscall.h i386/syscall.h x86_64/syscall.h darwin.h
 INCLUDES=-I../include -I../../franken/include -I../../franken/init -I../../franken/ucontext -I../../librumpuser -I../../franken/thread -I../../franken/ucontext/include
@@ -132,6 +133,12 @@ $(OBJDIR)/sigaction.o:		sigaction.c $(HEADERS)
 
 $(OBJDIR)/sigprocmask.o:	sigprocmask.c $(HEADERS)
 				$(COMPILE.c) -o $@ sigprocmask.c
+
+$(OBJDIR)/sigreturn.o:		sigreturn.c $(HEADERS)
+				$(COMPILE.c) -o $@ sigreturn.c
+
+$(OBJDIR)/_sigtramp.o:		_sigtramp.s
+				$(COMPILE.S) -march=native -o $@ $^
 
 $(OBJDIR)/write.o:		write.c $(HEADERS)
 				$(COMPILE.c) -o $@ write.c

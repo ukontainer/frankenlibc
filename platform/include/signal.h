@@ -25,5 +25,10 @@ int sigaction(int sig, const struct sigaction *restrict act,
 	      struct sigaction *restrict oact);
 
 #define SIGABRT 6
+#define SIGSEGV 11
+
+#define SA_SIGINFO	0x0040
+
+#define SIG_DFL  ((void (*)(int)) 0)
 
 #endif

@@ -81,6 +81,11 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	rump_boot_setsigmodel(RUMP_SIGMODEL_IGNORE);
 	rump_init();
 
+#ifdef __APPLE__
+	void __darwin_tls_init(void);
+	__darwin_tls_init();
+#endif
+
 	/* start a new rump process */
 	rump_pub_lwproc_rfork(0);
 
