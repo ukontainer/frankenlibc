@@ -10,7 +10,8 @@ CFLAGS+=
 
 DEPS=$(LIBDIR)/libc.a
 
-OBJ=$(OBJDIR)/hello $(OBJDIR)/ctor $(OBJDIR)/cat $(OBJDIR)/fork-test #$(OBJDIR)/hello-pthread
+OBJ=$(OBJDIR)/hello $(OBJDIR)/ctor $(OBJDIR)/cat #$(OBJDIR)/hello-pthread
+OBJ+=$(OBJDIR)/fork-test $(OBJDIR)/lkick
 
 default:		$(OBJ)
 
@@ -51,6 +52,10 @@ $(OBJDIR)/cat:		cat.c $(DEPS)
 $(OBJDIR)/fork-test:	fork-test.c $(DEPS)
 			@mkdir -p $(OBJDIR)
 			${CC} ${CFLAGS} ${LDFLAGS} -o $@ fork-test.c
+
+$(OBJDIR)/lkick:	lkick.c $(DEPS)
+			@mkdir -p $(OBJDIR)
+			${CC} ${CFLAGS} ${LDFLAGS} -o $@ lkick.c
 
 .PHONY:			test clean
 clean:		

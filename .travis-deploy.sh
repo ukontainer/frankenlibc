@@ -16,6 +16,7 @@ fi
 cp rumpobj/tests/ping $DESTDIR/bin
 cp rumpobj/tests/ping6 $DESTDIR/bin
 cp rumpobj/tests/hello $DESTDIR/bin
+cp rumpobj/tests/lkick $DESTDIR/bin
 
 
 # deploy to bintray
