@@ -4,3 +4,6 @@
 [submodule "musl"]
 	path = musl
 	url = git://github.com/ukontainer/musl.git
+[submodule "llvm"]
+	path = llvm
+	url = git://github.com/llvm/llvm-project.git
