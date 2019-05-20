@@ -579,16 +579,20 @@ then
 	then
 		# can use sysroot with clang
 		printf "#!/bin/sh\n\nexec ${CC-cc} --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
+		printf "#!/bin/sh\n\nexec ${CC-c++} --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang++
 	else
 		# sysroot does not work with linker eg NetBSD
 		appendvar COMPILER_FLAGS "-I${OUTDIR}/include -L${OUTDIR}/lib -lcrt1.o -B${OUTDIR}/lib"
 		appendvar COMPILER_FLAGS "-nostdinc -lc -nostdlib -static" # -lSystem -nodefaultlibs"
 		printf "#!/bin/sh\n\nexec ${CC-cc} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
+		printf "#!/bin/sh\n\nexec ${CC-c++} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang++
 	fi
 	COMPILER="${TOOL_PREFIX}-clang"
 	( cd ${BINDIR}
 	  ln -s ${COMPILER} ${TOOL_PREFIX}-cc
 	  ln -s ${COMPILER} rumprun-cc
+          ln -s ${TOOL_PREFIX}-clang++ ${TOOL_PREFIX}-c++
+          ln -s ${TOOL_PREFIX}-clang++ rumprun-c++
 	)
 else
 	# spec file for gcc
@@ -651,6 +655,9 @@ then
 	rumpkernel_maketools
 fi
 
+write_log " done"
+write_log "-n" "building libcxx.."
+rumpkernel_install_libcxx
 write_log " done"
 write_log "-n" "building tests.."
 
