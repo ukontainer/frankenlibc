@@ -6,12 +6,13 @@ BINDIR?=$(RUMPDIR)/bin
 REXEC=${BINDIR}/rexec
 INCDIR=$(RUMPDIR)/include
 LDFLAGS+=-static
+LDFLAGSXX+=
 CFLAGS+=
 
 DEPS=$(LIBDIR)/libc.a
 
 OBJ=$(OBJDIR)/hello $(OBJDIR)/ctor $(OBJDIR)/cat
-OBJ+=$(OBJDIR)/fork-test $(OBJDIR)/lkick
+OBJ+=$(OBJDIR)/fork-test $(OBJDIR)/lkick $(OBJDIR)/hellopp
 OBJ+=$(OBJDIR)/hello-pthread
 
 default:		$(OBJ)
@@ -32,6 +33,7 @@ ifneq ($(wildcard $(OBJDIR)/ping),)
 endif
 			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/fork-test rootfs:disk.img || true
 			${REXEC} $(OBJDIR)/hello-pthread
+			${REXEC} $(OBJDIR)/hellopp
 			rm -f disk.img
 
 $(OBJDIR)/ctor:		ctor.c $(DEPS)
@@ -41,6 +43,10 @@ $(OBJDIR)/ctor:		ctor.c $(DEPS)
 $(OBJDIR)/hello:	hello.c $(DEPS)
 			@mkdir -p $(OBJDIR)
 			${CC} ${CFLAGS} ${LDFLAGS} -o $@ hello.c
+
+$(OBJDIR)/hellopp:	hellopp.cc $(DEPS)
+			@mkdir -p $(OBJDIR)
+			${CXX} ${CFLAGS} ${LDFLAGS} -o $@ hellopp.cc ${LDFLAGSXX}
 
 $(OBJDIR)/hello-pthread: hello-pthread.c $(DEPS)
 			@mkdir -p $(OBJDIR)
