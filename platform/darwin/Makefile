@@ -13,6 +13,7 @@ OBJ+=$(OBJDIR)/fstat.o $(OBJDIR)/fsync.o
 OBJ+=$(OBJDIR)/getpagesize.o $(OBJDIR)/getrandom.o
 OBJ+=$(OBJDIR)/ioctl.o $(OBJDIR)/kill.o
 OBJ+=$(OBJDIR)/lseek.o $(OBJDIR)/pipe.o
+OBJ+=$(OBJDIR)/memset_pattern.o
 OBJ+=$(OBJDIR)/mmap.o $(OBJDIR)/munmap.o
 OBJ+=$(OBJDIR)/poll.o $(OBJDIR)/select.o
 OBJ+=$(OBJDIR)/pread.o $(OBJDIR)/pwrite.o
@@ -85,6 +86,9 @@ $(OBJDIR)/lseek.o:		lseek.c $(HEADERS)
 
 $(OBJDIR)/mach_absolute_time.o: mach_absolute_time.s
 				$(COMPILE.S) -march=native -o $@ $^
+
+$(OBJDIR)/memset_pattern.o:	memset_pattern.c $(HEADERS)
+				$(COMPILE.c) -o $@ memset_pattern.c
 
 $(OBJDIR)/mmap.o:		mmap.c $(HEADERS)
 				$(COMPILE.c) -o $@ mmap.c
