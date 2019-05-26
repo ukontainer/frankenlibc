@@ -42,6 +42,7 @@ jobs:
 script:
   - sudo mkdir -p /opt/rump && sudo chown -R $USER /opt/
   - for file in `find patches/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
+  - for file in `find patches/$TRAVIS_OS_NAME/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
   - ./build.sh -d /opt/rump -q -k linux notest
   - RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run
   - bash -ex ./.travis-deploy.sh

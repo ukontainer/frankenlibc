@@ -1,0 +1,13 @@
+diff --git a/llvm/libunwind/src/assembly.h b/llvm/libunwind/src/assembly.h
+index 2df930214fa..59e5a338291 100644
+--- a/llvm/libunwind/src/assembly.h
++++ b/llvm/libunwind/src/assembly.h
+@@ -41,7 +41,7 @@
+ #define GLUE(a, b) GLUE2(a, b)
+ #define SYMBOL_NAME(name) GLUE(__USER_LABEL_PREFIX__, name)
+ 
+-#if defined(__APPLE__)
++#if defined(__APPLE__) || defined(CONFIG_LKL)
+ 
+ #define SYMBOL_IS_FUNC(name)
+ #define EXPORT_SYMBOL(name)
