@@ -74,6 +74,11 @@ rumpkernel_install_header()
 
 [ ${OS} = "freebsd" ] && appendvar UNDEF "-U__FreeBSD__"
 [ ${OS} = "darwin" ] && appendvar UNDEF "-U__APPLE__"
+# static c++ binary needs __dso_handle (used by atexit of deconstructor),
+# defined by gnu library
+if [ "${OS}" = "linux" ] ; then
+    export EXTRA_LDSCRIPT_CC="-Wl,-defsym,__dso_handle=0 -Wl,-defsym,__cxa_thread_atexit_impl=0"
+fi
 
 rumpkernel_install_extra_libs ()
 {
