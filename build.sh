@@ -576,13 +576,14 @@ then
 	( cd ${OUTDIR} && ln -s . usr )
 	LIBGCC="$(${CC-cc} ${EXTRA_CPPFLAGS} ${EXTRA_CFLAGS} -print-libgcc-file-name)"
 	LIBGCCDIR="$(dirname ${LIBGCC})"
+	CLANG_PRINT_SYSROOT="if [ \"X\$1\" = \"X-print-sysroot\" ] ; then echo ${OUTDIR} ; exit 0; fi"
 	ln -s ${LIBGCC} ${OUTDIR}/lib/
 	ln -s ${LIBGCCDIR}/libgcc_eh.a ${OUTDIR}/lib/
 	if ${CC-cc} -I${OUTDIR}/include --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} tests/hello.c -o /dev/null 2>/dev/null
 	then
 		# can use sysroot with clang
-		printf "#!/bin/sh\n\nexec ${CC-cc} --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
-		printf "#!/bin/sh\n\nexec ${CC-c++} --sysroot=${OUTDIR} -static ${COMPILER_CXX_FLAGS} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang++
+		printf "#!/bin/sh\n\n${CLANG_PRINT_SYSROOT} \n\nexec ${CC-cc} --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
+		printf "#!/bin/sh\n\n${CLANG_PRINT_SYSROOT} \n\nexec ${CC-c++} --sysroot=${OUTDIR} -static ${COMPILER_CXX_FLAGS} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang++
 	else
 		# sysroot does not work with linker eg NetBSD
 		appendvar COMPILER_FLAGS "-I${OUTDIR}/include -L${OUTDIR}/lib -lcrt1.o -B${OUTDIR}/lib"
