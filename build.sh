@@ -635,6 +635,13 @@ printf "#!/bin/sh\n\nexec ${RANLIB-ranlib} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}
 printf "#!/bin/sh\n\nexec ${READELF-readelf} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-readelf
 chmod +x ${BINDIR}/${TOOL_PREFIX}-*
 
+mkdir -p ${OUTDIR}/share
+cat tools/toolchain.cmake.in | sed \
+	-e "s#@TRIPLE@#${TOOL_PREFIX}#g" \
+	-e "s#@BINDIR@#${BINDIR}#g" \
+	-e "s#@OUTDIR@#${OUTDIR}#g" \
+	> ${OUTDIR}/share/${TOOL_PREFIX}-toolchain.cmake
+
 write_log " done"
 write_log "-n" "testing duplicated syms.."
 
