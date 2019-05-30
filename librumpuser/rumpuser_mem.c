@@ -59,11 +59,7 @@ rumpuser_malloc(size_t size, int alignment, void **memp)
 		af++;
 	}
 
-#ifndef __APPLE__
-	mem = mmap(0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_ALIGNED(af), -1, 0);
-#else
 	mem = mmap(0, size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANON | MAP_ALIGNED(af), -1, 0);
-#endif
 	if (mem == MAP_FAILED) {
 		return EINVAL;
 	}
