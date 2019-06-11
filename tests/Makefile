@@ -10,8 +10,9 @@ CFLAGS+=
 
 DEPS=$(LIBDIR)/libc.a
 
-OBJ=$(OBJDIR)/hello $(OBJDIR)/ctor $(OBJDIR)/cat #$(OBJDIR)/hello-pthread
+OBJ=$(OBJDIR)/hello $(OBJDIR)/ctor $(OBJDIR)/cat
 OBJ+=$(OBJDIR)/fork-test $(OBJDIR)/lkick
+OBJ+=$(OBJDIR)/hello-pthread
 
 default:		$(OBJ)
 
@@ -30,6 +31,7 @@ ifneq ($(wildcard $(OBJDIR)/ping),)
 			${REXEC} ${OBJDIR}/ping6 rootfs:disk.img -- -c 3 ::1
 endif
 			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/fork-test rootfs:disk.img || true
+			${REXEC} $(OBJDIR)/hello-pthread
 			rm -f disk.img
 
 $(OBJDIR)/ctor:		ctor.c $(DEPS)
@@ -43,7 +45,6 @@ $(OBJDIR)/hello:	hello.c $(DEPS)
 $(OBJDIR)/hello-pthread: hello-pthread.c $(DEPS)
 			@mkdir -p $(OBJDIR)
 			${CC} ${CFLAGS} ${LDFLAGS} -o $@ hello-pthread.c
-			${CC} ${CFLAGS} -Wl,-rpath=$(LIBDIR)/ -o $@-dl hello-pthread.c
 
 $(OBJDIR)/cat:		cat.c $(DEPS)
 			@mkdir -p $(OBJDIR)

@@ -273,7 +273,7 @@ create_thread(const char *name, void *cookie, void (*f)(void *), void *data,
 		}
 		stack_size = STACKSIZE;
 	} else {
-		thread->flags = THREAD_EXTSTACK;
+		thread->flags |= THREAD_EXTSTACK;
 	}
 	create_ctx(&thread->ctx, stack, stack_size, f, data);
 	

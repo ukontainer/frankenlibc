@@ -12,7 +12,7 @@ void *rumprun_thread_create_withtls(int (*func)(void *), void *arg,
 
 	return create_thread("__clone", NULL,
 			     (void (*)(void *))func, arg,
-			     stack, stack_size, jointable);
+			     NULL, 0, jointable);
 }
 
 void rumprun_thread_exit_withtls(void)
