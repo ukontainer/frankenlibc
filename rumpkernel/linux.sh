@@ -29,11 +29,11 @@ rumpkernel_createuserlib()
 	cd musl
 	LKL_HEADER="${RUMP}/"
 	CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
-	./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
+	CC=gcc ./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
 		    --disable-optimize --prefix=${RUMPOBJ}/musl CFLAGS="${EXTRA_CFLAGS}"
 	# XXX: bug of musl Makefile ?
 	${MAKE} obj/src/internal/version.h
-	${MAKE} install
+	CC=gcc ${MAKE} install
 	# install libraries
 	${INSTALL-install} -d ${OUTDIR}/lib
 	${INSTALL-install} ${RUMPOBJ}/musl/lib/libpthread.a \
