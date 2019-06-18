@@ -17,6 +17,9 @@ checkcheckout ()
 makebuild ()
 {
 	echo "=== Linux build LKLSRC=${LKL_SRCDIR} ==="
+        if [ -n "$(awk -W version < /dev/null 2>&1 | grep "mawk")" ]; then
+		die "mawk is not supported."
+	fi
 	cd ${LKL_SRCDIR}
 	LKL_VERBOSE="V=0"
 	if [ ${NOISE} -gt 1 ] ; then
