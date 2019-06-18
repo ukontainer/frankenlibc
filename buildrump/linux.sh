@@ -35,6 +35,11 @@ makebuild ()
 		LKL_CROSS=${LKL_CROSS}-
 	fi
 
+	# clang does not have triple prefix
+        if [ -n "$(${CC} -v 2>&1 | grep "clang")" ]; then
+		LKL_CROSS=
+	fi
+
 	export LKL_VERBOSE
 	export LKL_CROSS
 
