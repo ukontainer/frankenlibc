@@ -1,0 +1,16 @@
+#
+# CMake toolchain file for cross-compiling to @TRIPLE@
+#
+# When building software with CMake, specify as -DCMAKE_TOOLCHAIN_FILE=...
+#
+
+set(CMAKE_SYSTEM_NAME Generic)
+
+set(CMAKE_C_COMPILER @BINDIR@/rumprun-cc)
+set(CMAKE_CXX_COMPILER @BINDIR@/rumprun-c++)
+
+set(CMAKE_FIND_ROOT_PATH @OUTDIR@)
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)

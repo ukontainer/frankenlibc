@@ -1,0 +1,12 @@
+binstall/xinstall
+cat/cat
+genassym/genassym
+join/join
+lorder/lorder
+mkdep/mkdep
+mktemp/mktemp
+rpcgen/rpcgen
+sed/sed
+stat/stat
+tsort/tsort
+yacc/yacc

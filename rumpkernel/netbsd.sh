@@ -89,3 +89,8 @@ rumpkernel_build_test()
 {
 	return 0
 }
+
+rumpkernel_install_libcxx()
+{
+	echo "Nothing to be done"
+}

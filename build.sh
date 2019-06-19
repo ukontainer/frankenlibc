@@ -568,27 +568,35 @@ then
 	TOOL_PREFIX=$(basename $(ls ${RUMPOBJ}/tooldir/bin/*-clang) | sed -e 's/-clang//' -e "s/--netbsd/-rumprun-${RUMP_KERNEL}/")
 	# possibly some will need to be filtered if compiler complains. Also de-dupe.
 	COMPILER_FLAGS="-fno-stack-protector -Wno-unused-command-line-argument ${EXTRA_CPPFLAGS} ${UNDEF} ${EXTRA_CFLAGS} ${EXTRA_LDSCRIPT_CC}"
+	appendvar COMPILER_FLAGS "-isystem ${OUTDIR}/include -nostdinc"
+	if [ ${OS} = "darwin" ] ; then appendvar COMPILER_FLAGS "-lcrt1.o -lc -nostdlib" ; fi
+	COMPILER_CXX_FLAGS="-isystem ${OUTDIR}/include/c++/v1 -D_GNU_SOURCE"
 	COMPILER_FLAGS="$(echo ${COMPILER_FLAGS} | sed 's/--sysroot=[^ ]*//g')"
 	# set up sysroot to see if it works
 	( cd ${OUTDIR} && ln -s . usr )
 	LIBGCC="$(${CC-cc} ${EXTRA_CPPFLAGS} ${EXTRA_CFLAGS} -print-libgcc-file-name)"
 	LIBGCCDIR="$(dirname ${LIBGCC})"
+	CLANG_PRINT_SYSROOT="if [ \"X\$1\" = \"X-print-sysroot\" ] ; then echo ${OUTDIR} ; exit 0; fi"
 	ln -s ${LIBGCC} ${OUTDIR}/lib/
 	ln -s ${LIBGCCDIR}/libgcc_eh.a ${OUTDIR}/lib/
 	if ${CC-cc} -I${OUTDIR}/include --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} tests/hello.c -o /dev/null 2>/dev/null
 	then
 		# can use sysroot with clang
-		printf "#!/bin/sh\n\nexec ${CC-cc} --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
+		printf "#!/bin/sh\n\n${CLANG_PRINT_SYSROOT} \n\nexec ${CC-cc} --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
+		printf "#!/bin/sh\n\n${CLANG_PRINT_SYSROOT} \n\nexec ${CC-c++} --sysroot=${OUTDIR} -static ${COMPILER_CXX_FLAGS} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang++
 	else
 		# sysroot does not work with linker eg NetBSD
 		appendvar COMPILER_FLAGS "-I${OUTDIR}/include -L${OUTDIR}/lib -lcrt1.o -B${OUTDIR}/lib"
 		appendvar COMPILER_FLAGS "-nostdinc -lc -nostdlib -static" # -lSystem -nodefaultlibs"
 		printf "#!/bin/sh\n\nexec ${CC-cc} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
+		printf "#!/bin/sh\n\nexec ${CC-c++} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang++
 	fi
 	COMPILER="${TOOL_PREFIX}-clang"
 	( cd ${BINDIR}
 	  ln -s ${COMPILER} ${TOOL_PREFIX}-cc
 	  ln -s ${COMPILER} rumprun-cc
+          ln -s ${TOOL_PREFIX}-clang++ ${TOOL_PREFIX}-c++
+          ln -s ${TOOL_PREFIX}-clang++ rumprun-c++
 	)
 else
 	# spec file for gcc
@@ -631,6 +639,13 @@ printf "#!/bin/sh\n\nexec ${RANLIB-ranlib} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}
 printf "#!/bin/sh\n\nexec ${READELF-readelf} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-readelf
 chmod +x ${BINDIR}/${TOOL_PREFIX}-*
 
+mkdir -p ${OUTDIR}/share
+cat tools/toolchain.cmake.in | sed \
+	-e "s#@TRIPLE@#${TOOL_PREFIX}#g" \
+	-e "s#@BINDIR@#${BINDIR}#g" \
+	-e "s#@OUTDIR@#${OUTDIR}#g" \
+	> ${OUTDIR}/share/${TOOL_PREFIX}-toolchain.cmake
+
 write_log " done"
 write_log "-n" "testing duplicated syms.."
 
@@ -652,10 +667,14 @@ then
 fi
 
 write_log " done"
+write_log "-n" "building libcxx.."
+rumpkernel_install_libcxx
+write_log " done"
 write_log "-n" "building tests.."
 
 # Always make tests to exercise compiler
 CC="${BINDIR}/${COMPILER}" \
+	CXX="${BINDIR}/${COMPILER}++" \
 	RUMPDIR="${OUTDIR}" \
 	RUMPOBJ="${RUMPOBJ}" \
 	BINDIR="${BINDIR}" \
@@ -675,6 +694,7 @@ write_log "-n" "running tests.."
 if [ ${RUNTESTS} = "test" ]
 then
 	CC="${BINDIR}/${COMPILER}" \
+		CXX="${BINDIR}/${COMPILER}++" \
 		RUMPDIR="${OUTDIR}" \
 		RUMPOBJ="${RUMPOBJ}" \
 		BINDIR="${BINDIR}" \

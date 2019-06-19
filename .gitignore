@@ -2,3 +2,6 @@
 /rumpobj/
 *.core
 ktrace.out
+.depend
+*.d
+*.lo
