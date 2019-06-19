@@ -3,6 +3,10 @@
 DESTDIR="/opt/rump"
 PUB_FILENAME=frankenlibc.tar.gz
 
+if [ x$DEPLOY = "xskip" ] ; then
+    exit
+fi
+
 if [ $CC = "gcc" ] ; then
     PUB_FILENAME=frankenlibc-gcc.tar.gz
 fi

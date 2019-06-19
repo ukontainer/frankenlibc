@@ -24,6 +24,7 @@ jobs:
       os: osx
       osx_image: xcode10.1
       compiler: clang
+      env: DEPLOY=skip
       before_install:
         - mkdir -p ~/.local/bin
         - mkdir ~/junit
@@ -31,6 +32,21 @@ jobs:
         - HOMEBREW_NO_AUTO_UPDATE=1 brew install gnu-sed ccache e2fsprogs
         - HOMEBREW_NO_AUTO_UPDATE=1 brew install binutils
         - brew upgrade binutils
+        - pip install --user yamlish junit_xml
+        - ln -sf /usr/local/bin/gsed ~/.local/bin/sed
+        - ln -sf /usr/local/bin/gdate ~/.local/bin/date
+        - ln -sf /usr/local/opt/e2fsprogs/sbin/mkfs.ext4 ~/.local/bin/
+        - ln -sf /usr/local/opt/binutils/bin/objcopy ~/.local/bin/objcopy
+    - stage: test
+      os: osx
+      osx_image: xcode10.2
+      compiler: clang
+      before_install:
+        - mkdir -p ~/.local/bin
+        - mkdir ~/junit
+        - export PATH=/usr/local/opt/ccache/libexec:$HOME/.local/bin:$PATH
+        - HOMEBREW_NO_AUTO_UPDATE=1 brew install gnu-sed ccache e2fsprogs
+        - HOMEBREW_NO_AUTO_UPDATE=1 brew install binutils
         - pip install --user yamlish junit_xml
         - ln -sf /usr/local/bin/gsed ~/.local/bin/sed
         - ln -sf /usr/local/bin/gdate ~/.local/bin/date
@@ -50,4 +66,4 @@ script:
   - for file in `find patches/$TRAVIS_OS_NAME/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
   - ./build.sh -d /opt/rump -q -k linux notest
   - RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run
-  - bash -ex ./.travis-deploy.sh
+  - bash -ex ./.travis-deploy.sh $DEPLOY

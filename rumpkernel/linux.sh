@@ -67,7 +67,9 @@ rumpkernel_install_header()
 
 	# only for mach-o
 	if [ "${OS}" = "darwin" ]; then
-		cd franken/ucontext && ln -sf /usr/include ./ && cd ../..
+		cd franken/ucontext && \
+		    ln -sf `xcrun --show-sdk-path`/usr/include ./ && \
+		    cd ../..
 	fi
 
 }
