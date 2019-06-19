@@ -29,7 +29,6 @@ jobs:
         - export PATH=/usr/local/opt/ccache/libexec:$HOME/.local/bin:$PATH
         - HOMEBREW_NO_AUTO_UPDATE=1 brew install gnu-sed ccache e2fsprogs
         - HOMEBREW_NO_AUTO_UPDATE=1 brew install binutils
-        - brew upgrade binutils
         - pip install --user yamlish junit_xml
         - ln -sf /usr/local/bin/gsed ~/.local/bin/sed
         - ln -sf /usr/local/bin/gdate ~/.local/bin/date
