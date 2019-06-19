@@ -53,7 +53,7 @@ makebuild ()
 
 	cd tools/lkl
 	rm -f ${OBJDIR}/linux/tools/lkl/lib/lkl.o
-	${MAKE} CC=${CC} CROSS_COMPILE=${LKL_CROSS} ${LKL_EXT_OPT} -j ${JNUM} ${LKL_VERBOSE} O=${OBJDIR}/linux
+	${MAKE} CC=${CC} CROSS_COMPILE=${LKL_CROSS} ${LKL_EXT_OPT} -j ${JNUM} ${LKL_VERBOSE} O=${OBJDIR}/linux 2>&1 ${DESTDIR}/lkl-build.log
 
 	cd ../../
 	${MAKE} CROSS_COMPILE=${LKL_CROSS} ${LKL_EXT_OPT} headers_install ARCH=lkl O=${DESTDIR}/ \
