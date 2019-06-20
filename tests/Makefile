@@ -36,7 +36,7 @@ ifneq ($(wildcard $(OBJDIR)/ping),)
 endif
 			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/fork-test rootfs:disk.img || true
 			${REXEC} $(OBJDIR)/hello-pthread
-ifneq ($(wildcard $(CXX)),)
+ifneq ($(wildcard $(OBJDIR)/hellopp),)
 			${REXEC} $(OBJDIR)/hellopp
 endif
 			rm -f disk.img
