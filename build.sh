@@ -667,9 +667,14 @@ then
 fi
 
 write_log " done"
+
+if $(${CC-cc} -v 2>&1 | grep -q clang)
+then
 write_log "-n" "building libcxx.."
 rumpkernel_install_libcxx
 write_log " done"
+fi
+
 write_log "-n" "building tests.."
 
 # Always make tests to exercise compiler

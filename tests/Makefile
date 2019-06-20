@@ -12,8 +12,11 @@ CFLAGS+=
 DEPS=$(LIBDIR)/libc.a
 
 OBJ=$(OBJDIR)/hello $(OBJDIR)/ctor $(OBJDIR)/cat
-OBJ+=$(OBJDIR)/fork-test $(OBJDIR)/lkick $(OBJDIR)/hellopp
-OBJ+=$(OBJDIR)/hello-pthread
+OBJ+=$(OBJDIR)/fork-test $(OBJDIR)/hello-pthread
+OBJ+=$(OBJDIR)/lkick
+ifneq ($(wildcard $(CXX)),)
+OBJ+=$(OBJDIR)/hellopp
+endif
 
 default:		$(OBJ)
 
@@ -33,7 +36,9 @@ ifneq ($(wildcard $(OBJDIR)/ping),)
 endif
 			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/fork-test rootfs:disk.img || true
 			${REXEC} $(OBJDIR)/hello-pthread
+ifneq ($(wildcard $(CXX)),)
 			${REXEC} $(OBJDIR)/hellopp
+endif
 			rm -f disk.img
 
 $(OBJDIR)/ctor:		ctor.c $(DEPS)

@@ -1,5 +1,4 @@
 language: c
-compiler: clang
 cache: ccache
 git:
   submodules: false
@@ -15,15 +14,17 @@ jobs:
       os: linux
       dist: trusty
       sudo: required
-      before_install:
-        - travis_wait 30 git submodule update --init llvm
-        - travis_wait 30 git submodule update --init --depth=50
+      compiler: clang
+    - stage: test
+      os: linux
+      dist: trusty
+      sudo: required
+      compiler: gcc
     - stage: test
       os: osx
       osx_image: xcode10.1
+      compiler: clang
       before_install:
-        - travis_wait 30 git submodule update --init llvm
-        - travis_wait 30 git submodule update --init --depth=50
         - mkdir -p ~/.local/bin
         - mkdir ~/junit
         - export PATH=/usr/local/opt/ccache/libexec:$HOME/.local/bin:$PATH
@@ -36,9 +37,13 @@ jobs:
         - ln -sf /usr/local/opt/e2fsprogs/sbin/mkfs.ext4 ~/.local/bin/
         - ln -sf /usr/local/opt/binutils/bin/objcopy ~/.local/bin/objcopy
     - stage: downstream
+      before_script:
       script: bash -ex ./.travis-trigger.sh ukontainer/rumprun-packages lkl-musl
       os: linux
 
+before_script:
+  - travis_wait 30 git submodule update --init llvm
+  - travis_wait 30 git submodule update --init --depth=50
 script:
   - sudo mkdir -p /opt/rump && sudo chown -R $USER /opt/
   - for file in `find patches/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
