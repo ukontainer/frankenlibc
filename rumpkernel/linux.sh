@@ -181,7 +181,7 @@ rumpkernel_install_libcxx()
         echo "=== building libc++abi ==="
         mkdir -p ${RUMPOBJ}/libcxxabi
         cd ${RUMPOBJ}/libcxxabi
-        LIBCXXABI_FLAGS="-I${OUTDIR}/include"
+        LIBCXXABI_FLAGS="-I${OUTDIR}/include -D_GNU_SOURCE"
         cmake \
           -DCMAKE_CROSSCOMPILING=True \
           -DCMAKE_C_COMPILER=${C_COMPILER} \
