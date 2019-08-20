@@ -102,6 +102,15 @@ rumpkernel_explode_libc()
 (
 	cd ${RUMPOBJ}/explode/musl
 	${AR-ar} x ${RUMPOBJ}/musl/lib/libc.a
+
+	# fixup for case-insensitive fs on macOS
+	if [ ${OS} = "darwin" ] ; then
+		rm -f _exit.o _Exit.o
+		ar x ../libc.a _Exit.o
+		mv _Exit.o musl_Exit.o
+		ar x ../libc.a _exit.o
+	fi
+
 	cp ${RUMPOBJ}/${RUMP_KERNEL}.o ./
 	# XXX: ld.gold generates _end BSS symbol at link time
 	if [ ${OS} = "linux" ] ; then
