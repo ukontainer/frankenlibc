@@ -18,6 +18,7 @@
 #define pipe(fs) __platform_pipe(fs)
 #define open __platform_open
 #define close(f) __platform_close(f)
+#define _exit(f) __platform__exit(f)
 
 void _exit(int) __attribute__ ((noreturn));
 int fsync(int);
