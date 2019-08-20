@@ -533,8 +533,6 @@ __franken_fdinit_create()
 		int ret;
 		char buf[64];
 
-		printf("mount 9p fs to %s\n", mnt_point);
-
 		if (strcmp(mnt_point, "/") == 0) {
 			ret = lkl_sys_mkdir("/mnt", 0700);
 			ret = lkl_sys_mount("", "/mnt", "9p", 0,
@@ -560,7 +558,6 @@ __franken_fdinit_create()
 			if (ret < 0)
 				printf("can't mount 9p fs err=%d\n", ret);
 		}
-		printf("mount 9p fs done\n");
 	}
 #endif
 
