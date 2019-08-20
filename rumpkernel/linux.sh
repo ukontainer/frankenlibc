@@ -106,9 +106,9 @@ rumpkernel_explode_libc()
 	# fixup for case-insensitive fs on macOS
 	if [ ${OS} = "darwin" ] ; then
 		rm -f _exit.o _Exit.o
-		ar x ../libc.a _Exit.o
+		${AR-ar} x ${RUMPOBJ}/musl/lib/libc.a _Exit.o
 		mv _Exit.o musl_Exit.o
-		ar x ../libc.a _exit.o
+		${AR-ar} x ${RUMPOBJ}/musl/lib/libc.a _exit.o
 	fi
 
 	cp ${RUMPOBJ}/${RUMP_KERNEL}.o ./
