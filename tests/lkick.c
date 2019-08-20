@@ -49,15 +49,11 @@ main(int argc, char *argv[])
 		return -1;
 	} else {
 		// parent
-		printf("parent ch pid=%d, pa pid=%d\n", pid, 0);
 		/* XXX: since ld.so calls exit(main), this won't be called...  */
 		if ((ret = waitid(P_PID, pid, NULL, WEXITED)) < 0) {
 			perror("waitid");
 			return -1;
 		}
-		printf("The child (pid=%d) existed with status(%d).\n",
-		       pid, WEXITSTATUS(status));
-
 	}
 
 
