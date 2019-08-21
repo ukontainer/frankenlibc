@@ -12,6 +12,9 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "rexec.h"
 
@@ -26,7 +29,7 @@ usage(char *name)
 }
 
 
-char *spec_9pfs = NULL;
+static char *spec_9pfs = NULL;
 
 struct fdinfo {
 	int fd;
@@ -284,6 +287,7 @@ main(int argc, char **argv)
 		}
 	}
 	os_dropcaps();
+	open_9pfs();
 	os_extrafiles();
 	/* see how many file descriptors open */
 	nfds = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -538,4 +542,42 @@ uuid()
 	}
 	uuid[d++] = 0;
 	setenv("UUID", uuid, 0);
+}
+
+void
+open_9pfs()
+{
+	if (!spec_9pfs)
+		return;
+
+	char *colon = strchr(spec_9pfs, ':');
+	char *guest = &colon[1];
+	char buf[16];
+
+	int sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {
+		perror("socket");
+		exit(1);
+	}
+
+	int val = 0;
+	ioctl(sock, FIONBIO, &val);
+
+	static struct sockaddr_in sin = {
+		.sin_family = AF_INET,
+	};
+	sin.sin_port = htons(5640); /* 9pfs */
+	sin.sin_addr.s_addr = inet_addr("127.0.0.1");
+	if (connect(sock, (const struct sockaddr *)&sin,
+		    sizeof(sin))) {
+		perror("connect");
+		exit(1);
+	}
+
+	/* pass to mount point */
+	setenv("9PFS_MNT", guest, 0);
+	sprintf(buf, "%d", sock);
+	setenv("9PFS_FD", buf, 0);
+
+	return;
 }

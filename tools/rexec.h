@@ -12,3 +12,4 @@ int os_pre(void);
 int os_extrafiles(void);
 int os_open(char *, char *);
 void os_dropcaps();
+void open_9pfs(void);

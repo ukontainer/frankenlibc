@@ -116,16 +116,6 @@ franken_lkl_get_json_config(void)
 {
 	return json_cfg;
 }
-
-#define SIGINT 2
-#define SIGTERM 15
-static void term_9psv(int sig)
-{
-	char *pid = getenv("9PFSSV_PID");
-	if (pid) {
-		kill(atoi(pid), SIGTERM);
-	}
-}
 #endif
 
 void __franken_fdinit()
@@ -217,11 +207,6 @@ void __franken_fdinit()
 			fs.dev = NULL;
 			fs.fd = atoi(tmpfd);
 			lkl_9pfs_add(&fs);
-
-			struct sigaction sa;
-			sigemptyset(&sa.sa_mask);
-			sa.sa_flags = 0;
-			sa.sa_handler = term_9psv;
 #endif
 		}
 	}

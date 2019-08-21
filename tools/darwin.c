@@ -60,91 +60,9 @@ os_emptydir()
 	return 0;
 }
 
-extern char *spec_9pfs;
-#define FSSV_PATH "/tmp/9psv"
-#define FSSV_EXE "./build/server"
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/un.h>
-static pid_t pid_9psv;
-
 int
 os_extrafiles()
 {
-
-	if (!spec_9pfs)
-		return 0;
-
-	char *colon = strchr(spec_9pfs, ':');
-	char *host = strndup(spec_9pfs, colon - spec_9pfs);
-	char *guest = &colon[1];
-	char *fssv_argv[] = {FSSV_EXE, "-h", FSSV_PATH, host, NULL};
-	char buf[16];
-
-#if 0
-	unlink(FSSV_PATH);
-	/* XXX: may reimplemented w/o fd (shmem instead?) */
-	/* XXX: need killing child when parent terminates */
-	if ((pid_9psv = fork()) < 0) {
-		perror("fork");
-		exit(1);
-		return (-1) ;
-	}
-	else if (pid_9psv == 0) {
-		if (execv(FSSV_EXE, fssv_argv) == -1) {
-			perror("execve lib9p server");
-			exit(1);
-		}
-		exit(0);
-	}
-
-	/* parent process */
-	usleep(10*1000);
-	int sock = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (sock < 0) {
-		perror("socket");
-		exit(1);
-	}
-	static struct sockaddr_un sun = {
-		.sun_family = AF_LOCAL,
-		.sun_len = sizeof(sun),
-	};
-	memcpy(&sun.sun_path, FSSV_PATH, strlen(FSSV_PATH));
-	if (connect(sock, (const struct sockaddr *)&sun,
-		    sizeof(sun))) {
-		perror("connect");
-		exit(1);
-	}
-#else
-	/* parent process */
-	int sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock < 0) {
-		perror("socket");
-		exit(1);
-	}
-
-	int val = 0;
-	ioctl(sock, FIONBIO, &val);
-
-	static struct sockaddr_in sin = {
-		.sin_family = AF_INET,
-	};
-	sin.sin_port = htons(5640); /* 9pfs */
-	sin.sin_addr.s_addr = inet_addr("127.0.0.1");
-	if (connect(sock, (const struct sockaddr *)&sin,
-		    sizeof(sin))) {
-		perror("connect");
-		exit(1);
-	}
-#endif
-
-	/* pass to mount point */
-	setenv("9PFS_MNT", guest, 0);
-	sprintf(buf, "%d", pid_9psv);
-	setenv("9PFSSV_PID", buf, 0);
-	sprintf(buf, "%d", sock);
-	setenv("9PFS_FD", buf, 0);
-
 	return 0;
 }
 
