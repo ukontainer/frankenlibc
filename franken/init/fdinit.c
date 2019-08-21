@@ -163,7 +163,7 @@ void __franken_fdinit()
 			__franken_fd[fd].flags = fcntl(fd, F_GETFL, 0);
 
 			memset(&st, 0, sizeof(struct stat));
-			if (fstat(n, &st) == -1) {
+			if (fstat(fd, &st) == -1) {
 				__franken_fd[n].valid = 0;
 			}
 			memcpy(&__franken_fd[fd].st, &st, sizeof(struct stat));
