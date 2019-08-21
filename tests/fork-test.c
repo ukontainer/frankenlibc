@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <errno.h>
 
@@ -25,8 +26,9 @@ main(int argc, char *argv[])
 
 	if (pid == 0) {
 		// child
-		lkl_printf("child pid=%d, ppid=%d\n", getpid(), getppid());
-		ret = execve(path, e_argv, e_envv);
+		printf("child pid=%d, ppid=%d\n", getpid(), getppid());
+		ret = execve(path, (char *const *)e_argv,
+			     (char *const *)e_envv);
 		if (ret < 0)
 			perror("execve error");
 
@@ -34,13 +36,13 @@ main(int argc, char *argv[])
 		return -1;
 	} else {
 		// parent
-		lkl_printf("parent ch pid=%d, pa pid=%d\n", pid, 0);
+		printf("parent ch pid=%d, pa pid=%d\n", pid, 0);
 		/* XXX: since ld.so calls exit(main), this won't be called...  */
 		if ((ret = waitid(P_PID, pid, NULL, WEXITED)) < 0) {
-			lkl_perror("wait error", errno);
+			perror("wait error");
 			return -1;
 		}
-		lkl_printf("The child (pid=%d) existed with status(%d).\n",
+		printf("The child (pid=%d) existed with status(%d).\n",
 		       pid, WEXITSTATUS(status));
 
 	}

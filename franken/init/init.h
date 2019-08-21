@@ -5,6 +5,7 @@
 #include <netinet/in.h>
 
 #define MAXFD 64
+int printf(const char *fmt, ...);
 
 struct __fdtable {
 	int valid;
@@ -30,6 +31,6 @@ struct lkl_config *franken_lkl_get_json_config(void);
 void darwin_mod_init_func(void);
 void darwin_mod_term_func(void);
 #else
-static void inline darwin_mod_init_func(void) {}
-static void inline darwin_mod_term_func(void) {}
+static inline void darwin_mod_init_func(void) {}
+static inline void darwin_mod_term_func(void) {}
 #endif

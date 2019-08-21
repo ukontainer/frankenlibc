@@ -57,7 +57,6 @@ finifn()
 int
 __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, char **envp)
 {
-	uintptr_t a;
 
 	environ = envp;
 	_environ = envp;
@@ -90,6 +89,7 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	rump_pub_lwproc_rfork(0);
 
 #ifndef MUSL_LIBC
+	uintptr_t a;
 	/* init NetBSD libc */
 	_libc_init();
 

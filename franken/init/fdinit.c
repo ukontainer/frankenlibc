@@ -130,15 +130,20 @@ static void term_9psv(int sig)
 
 void __franken_fdinit()
 {
-	int n, x, fd;
+	int n, fd;
+	size_t x;
 	char *env, *var;
 	struct stat st;
 
 	/* retrieve fd from environ embedded by rexec. */
 
-
-
 	for (n = 0; n <= 2; n++) {
+		memset(&st, 0, sizeof(struct stat));
+		if (fstat(n, &st) == -1) {
+			__franken_fd[n].valid = 0;
+			continue;
+		}
+
 		/* make STDIN, STDOUT, STDERR valid */
 		__franken_fd[n].valid = 1;
 		__franken_fd[n].flags = fcntl(n, F_GETFL, 0);
@@ -161,11 +166,16 @@ void __franken_fdinit()
 		else
 			continue;
 
+		fd = atoi(var);
 		if (strncmp(env, "__RUMP_FDINFO_", 14) == 0||
 		    strncmp(env, "9PFS_FD", 7) == 0) {
-			fd = atoi(var);
 			__franken_fd[fd].valid = 1;
 			__franken_fd[fd].flags = fcntl(fd, F_GETFL, 0);
+
+			memset(&st, 0, sizeof(struct stat));
+			if (fstat(n, &st) == -1) {
+				__franken_fd[n].valid = 0;
+			}
 			memcpy(&__franken_fd[fd].st, &st, sizeof(struct stat));
 		}
 
@@ -531,7 +541,6 @@ __franken_fdinit_create()
 	if (getenv("9PFS_MNT")) {
 		char *mnt_point = getenv("9PFS_MNT");
 		int ret;
-		char buf[64];
 
 		if (strcmp(mnt_point, "/") == 0) {
 			ret = lkl_sys_mkdir("/mnt", 0700);
@@ -565,10 +574,10 @@ __franken_fdinit_create()
 	mount_tmpfs();
 	/* mount procfs */
 	rump___sysimpl_mkdir("/proc", 0777);
-	rump___sysimpl_mount50("proc", "/proc", 0, NULL, NULL);
+	rump___sysimpl_mount50("proc", "/proc", 0, NULL, 0);
 	/* mount sysfs */
 	rump___sysimpl_mkdir("/sys", 0777);
-	rump___sysimpl_mount50("sysfs", "/sys", 0, NULL, NULL);
+	rump___sysimpl_mount50("sysfs", "/sys", 0, NULL, 0);
 }
 
 void franken_recv_thread(int fd, void *thrid)
