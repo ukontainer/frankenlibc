@@ -4,6 +4,7 @@ export CC=${CC-arm-none-eabi-gcc}
 export NM=${NM-arm-none-eabi-nm}
 export AR=${AR-arm-none-eabi-ar}
 export OBJCOPY=${OBJCOPY-arm-none-eabi-objcopy}
+export LKL_CROSS=arm-none-eabi-
 
 # arm-none-eabi-gcc does not turn this off when cpu set
 EXTRA_CPPFLAGS="-U__VFP_FP__"

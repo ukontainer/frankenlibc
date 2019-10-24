@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "darwin.h"
 #include "syscall.h"

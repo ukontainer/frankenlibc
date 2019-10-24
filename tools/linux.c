@@ -449,7 +449,7 @@ readRoutes(int sock, char *buf, size_t size, unsigned int seq, unsigned int pid)
 
 		hdr = (struct nlmsghdr *)buf;
 
-		if ((NLMSG_OK(hdr, n) == 0) || (hdr->nlmsg_type == NLMSG_ERROR))
+		if ((NLMSG_OK(hdr, (__u32)n) == 0) || (hdr->nlmsg_type == NLMSG_ERROR))
 			return -1;
 
 		if (hdr->nlmsg_type == NLMSG_DONE)
@@ -531,7 +531,7 @@ int get_gateway(struct in_addr *gw)
 		return -1;
 	}
 
-	for (; NLMSG_OK(nlmsg, len); nlmsg = NLMSG_NEXT(nlmsg, len)) {
+	for (; NLMSG_OK(nlmsg, (__u32)len); nlmsg = NLMSG_NEXT(nlmsg, len)) {
 		if (parseRoutes(nlmsg, &dest, gw) == -1)
 			continue;
 

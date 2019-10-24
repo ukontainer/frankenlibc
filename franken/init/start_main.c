@@ -8,6 +8,7 @@
 
 void rump_boot_setsigmodel(int);
 int rump_init(void);
+int rump_init_server(const char *);
 int rump_pub_lwproc_rfork(int);
 void rump_pub_lwproc_releaselwp(void);
 
@@ -119,7 +120,7 @@ __franken_start_main(int(*main)(int,char **,char **), int argc, char **argv, cha
 	char *sysproxy = getenv("RUMPRUN_SYSPROXY");
 	if (sysproxy) {
 		if (rump_init_server(sysproxy) != 0)
-			err(1, "failed to init sysproxy at %s", sysproxy);
+			printf("failed to init sysproxy at %s\n", sysproxy);
 		printf("sysproxy listening at: %s\n", sysproxy);
 	}
 #endif

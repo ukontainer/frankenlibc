@@ -16,6 +16,7 @@ INCLUDE=-I. -I../franken/include -I../franken/ucontext -I../franken/thread -I../
 INCLUDE+=-I$(RUMP)/include
 CPPFLAGS+=-nostdinc $(INCLUDE)
 CFLAGS+=-fno-stack-protector
+CFLAGS+=-Wno-error -Wall	# FIXME
 
 OBJS=$(OBJDIR)/rumpuser.o
 OBJS+=$(OBJDIR)/rumpuser_mem.o $(OBJDIR)/rumpuser_random.o

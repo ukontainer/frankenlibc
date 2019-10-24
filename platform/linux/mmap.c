@@ -28,7 +28,7 @@ __mmap(void *addr, size_t length, int prot, int nflags, int fd, off_t offset)
 void *
 mmap(void *addr, size_t length, int prot, int nflags, int fd, off_t offset)
 {
-	int align = (nflags & MAP_ALIGNMENT_MASK) >> MAP_ALIGNMENT_SHIFT;
+	size_t align = (nflags & MAP_ALIGNMENT_MASK) >> MAP_ALIGNMENT_SHIFT;
 	long amask = (1L << align) - 1L;
 	long off;
 	void *mem;
@@ -47,7 +47,7 @@ mmap(void *addr, size_t length, int prot, int nflags, int fd, off_t offset)
 	}
 #endif
 
-	if (align == 0 || (1L << align) <= __pagesize) {
+	if (align == 0 || (1UL << align) <= __pagesize) {
 		return __mmap(addr, length, prot, flags, fd, offset);
 	}
 

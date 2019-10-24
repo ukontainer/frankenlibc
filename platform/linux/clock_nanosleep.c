@@ -29,7 +29,7 @@ static long long timespec_diff_ns(struct timespec start, struct timespec end)
 }
 
 
-static int sleep_fast_path(struct timespec *ltp)
+static int sleep_fast_path(struct linux_timespec *ltp)
 {
 	struct timespec start, now;
 	int ret;

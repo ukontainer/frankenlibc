@@ -236,8 +236,8 @@ main(int argc, char **argv)
 		while (part) {
 			if (strlen(part) + 1 + strlen(program) < sizeof(prog)) {
 				strncpy(prog, part, sizeof(prog));
-				strncat(prog, "/", 1);
-				strncat(prog, program, strlen(program));
+				strcat(prog, "/");
+				strcat(prog, program);
 				if (access(prog, R_OK | X_OK) == 0)
 					break;
 			}

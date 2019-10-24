@@ -18,6 +18,7 @@ pwritev(int fd, const struct iovec *iov, int iovcnt, off_t off)
 			break;
 		case LINUX_ESPIPE:
 			errno = ESPIPE;
+			break;
 		default:
 			errno = EBADF;
 			break;
