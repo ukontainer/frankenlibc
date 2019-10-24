@@ -38,8 +38,6 @@ extern int __sigaltstack(const stack_t * __restrict, stack_t * __restrict);
 extern int __in_sigtramp;
 #endif /* __DYNAMIC_ */
 
-#define sigprocmask(a,b,c) __platform_sigprocmask(a,b,c)
-
 __attribute__((visibility("hidden")))
 mcontext_t
 getmcontext(ucontext_t *uctx, void *sp)

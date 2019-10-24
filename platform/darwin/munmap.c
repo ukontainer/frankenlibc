@@ -3,5 +3,5 @@
 
 int munmap(void *mem, size_t size)
 {
-	return syscall_2(SYS_munmap, mem, size);
+	return syscall_2(SYS_munmap, (intptr_t)mem, size);
 }

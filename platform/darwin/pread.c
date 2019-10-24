@@ -3,6 +3,6 @@
 
 ssize_t __platform_pread(int fd, void *buf, size_t count, off_t offset)
 {
-	return syscall_4(SYS_pread, fd, buf, count, offset);
+	return syscall_4(SYS_pread, fd, (intptr_t)buf, count, offset);
 }
 

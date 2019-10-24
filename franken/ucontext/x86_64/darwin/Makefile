@@ -7,7 +7,7 @@ OBJ=$(OBJDIR)/setcontext.o $(OBJDIR)/_ctx_start.o $(OBJDIR)/_setcontext.o $(OBJD
 OBJ+=$(OBJDIR)/getmcontext.o $(OBJDIR)/swapcontext.o $(OBJDIR)/makecontext.o
 INCLUDES=-I../.. -I../../include
 CPPFLAGS+=$(INCLUDES)
-CFLAGS+=-fno-stack-protector
+CFLAGS+=-fno-stack-protector -Wno-nullability-completeness
 
 default:			$(OBJ)
 

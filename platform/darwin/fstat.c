@@ -10,7 +10,7 @@
 int __ioctl(int, unsigned long, ...);
 int __fstat(int fd, struct darwin_stat *st)
 {
-	return syscall_2(SYS_fstat64, fd, st);
+	return syscall_2(SYS_fstat64, fd, (int64_t)st);
 }
 
 int __platform_npoll = 0;

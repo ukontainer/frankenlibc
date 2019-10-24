@@ -40,6 +40,11 @@ int  swapcontext(ucontext_t *, ucontext_t *);
 #else
 void makecontext(ucontext_t *, void (*)(void), int, ...);
 int  swapcontext(ucontext_t *, const ucontext_t *);
+int  setcontext(const ucontext_t *);
+
+int __platform_sigprocmask(int how, const sigset_t *restrict set,
+			   sigset_t *restrict oset);
+#define sigprocmask(a,b,c) __platform_sigprocmask(a,b,c)
 #endif
 
 #endif

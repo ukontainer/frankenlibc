@@ -3,6 +3,9 @@
 #include <sys/types.h>
 #include "syscall.h"
 
+struct iovec;
+
+ssize_t __platform_readv(int fd, const struct iovec *iov, int count);
 ssize_t __platform_preadv(int fd, const struct iovec *iov, int iovcnt, off_t off)
 {
 	off_t ret = lseek(fd, off, SEEK_SET);

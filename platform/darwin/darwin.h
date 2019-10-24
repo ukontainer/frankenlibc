@@ -78,7 +78,10 @@ struct darwin_stat { /* when _DARWIN_FEATURE_64_BIT_INODE is defined */
 
 typedef uint8_t sa_family_t;
 typedef	char *caddr_t;
+#ifndef _U_INT32_T
+#define _U_INT32_T
 typedef uint32_t u_int32_t;
+#endif
 
 struct sockaddr {
 	unsigned char	sa_len;

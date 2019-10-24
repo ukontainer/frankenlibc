@@ -2,7 +2,10 @@
 #define _SIGNAL_H_
 
 #include <sys/types.h>
+#ifndef _SIGSET_T
+#define _SIGSET_T
 typedef uint32_t	sigset_t; /* __darwin_sigset_t */
+#endif
 typedef void siginfo_t;		  /* XXX */
 
 struct sigaction {

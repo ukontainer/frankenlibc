@@ -10,6 +10,7 @@
 
 /* move to a header somewhere */
 int __franken_start_main(int (*)(int,char **,char **), int, char **, char **);
+int sigemptyset(sigset_t *);
 
 extern int main(int, char **, char **);
 
@@ -50,7 +51,7 @@ void __darwin_tls_init(void)
 	// Let's use %gs instead. Install a signal handler for SIGSEGV to
 	// dynamically patch up instructions that access %fs.
 	struct sigaction sa = {
-		.sa_handler = handle_sigsegv,
+		.sa_handler = (void *)handle_sigsegv,
 		.sa_flags = SA_SIGINFO,
 	};
 	sigemptyset(&sa.sa_mask);
@@ -74,7 +75,7 @@ _start1(int argc, char **argv)
 
 	/* iterate over fds to pick up the special ones */
 	for (fd = 0; fd < MAXFD; fd++) {
-		if (syscall_2(SYS_fstat64, fd, &dst) == -1)
+		if (syscall_2(SYS_fstat64, fd, (intptr_t)&dst) == -1)
 			break;
 
 		switch (dst.st_mode & DARWIN_S_IFMT) {

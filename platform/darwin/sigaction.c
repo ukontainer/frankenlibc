@@ -1,6 +1,8 @@
 #include <signal.h>
 #include "syscall.h"
 
+#include "darwin.h"
+
 // keep in sync with BSD_KERNEL_PRIVATE value in xnu/bsd/sys/signal.h
 #define SA_VALIDATE_SIGRETURN_FROM_SIGTRAMP 0x0400
 
@@ -30,7 +32,7 @@ struct  __sigaction {
 static int __platform_sigaction_sys(int sig, struct sigaction *restrict act,
 				    struct sigaction *restrict oact)
 {
-	return syscall_3(SYS_sigaction, sig, (int64_t)act, (int64_t)oact);
+	return syscall_3(SYS_sigaction, sig, (intptr_t)act, (intptr_t)oact);
 }
 
 /**
