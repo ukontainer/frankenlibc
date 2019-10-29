@@ -33,6 +33,13 @@ rumpkernel_createuserlib()
 	set -e
 	echo "=== building musl ==="
 	cd musl
+
+	# musl needs to be built with gcc for libc.so
+        if [ -n "$(${CC} -v 2>&1 | grep "clang")" ]; then
+		# XXX: should properly handle cross-build environment
+		CC=gcc
+	fi
+
 	LKL_HEADER="${RUMP}/"
 	CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
 	CC=${CC:-gcc} ./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
@@ -120,6 +127,11 @@ rumpkernel_explode_libc()
 	else
 		LKL_CROSS=${LKL_CROSS}-
 	fi
+	# clang does not have triple prefix
+        if [ -n "$(${CC} -v 2>&1 | grep "clang")" ]; then
+		LKL_CROSS=
+	fi
+
 	# XXX: ld.gold generates _end BSS symbol at link time
 	if [ ${OS} = "linux" ] ; then
 		${LKL_CROSS}objcopy --redefine-sym _end=rumpns__end ${RUMPOBJ}/linux/tools/lkl/liblkl.a
