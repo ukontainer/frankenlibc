@@ -12,14 +12,14 @@ jobs:
   include:
     - stage: test
       os: linux
-      dist: trusty
+      dist: xenial
       sudo: required
       compiler: clang
       env:
         - ARCH=amd64
     - stage: test
       os: linux
-      dist: trusty
+      dist: xenial
       sudo: required
       compiler: gcc
       env:
@@ -60,7 +60,7 @@ jobs:
         - ln -sf /usr/local/opt/binutils/bin/objcopy ~/.local/bin/objcopy
     - stage: test
       os: linux
-      dist: trusty
+      dist: xenial
       sudo: required
       compiler: arm-linux-gnueabihf-gcc
       env:
