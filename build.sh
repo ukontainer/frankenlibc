@@ -535,8 +535,12 @@ mkdir -p ${RUMPOBJ}/explode/platform
 
 	cd ${RUMPOBJ}/explode
 	${AR-ar} cr libc.a rumpkernel/rumpkernel.o rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
-	if [ "${HOST}" = "Linux" ]; then
-		${CC-cc} -fuse-ld=gold -Wl,-e,_dlstart -nostdlib -shared -o libc.so \
+	if [ "${HOST}" = "Linux" ] && [ "${OS}" != "qemu-arm" ]; then
+		LDFLAGS_LIBCSO="-fuse-ld=gold -Wl,-e,_dlstart -nostdlib -shared"
+		if [ "${CC}" = "arm-linux-gnueabihf-gcc" ] ; then
+			appendvar LDFLAGS_LIBCSO "-static"
+		fi
+		${CC-cc} $LDFLAGS_LIBCSO -o libc.so \
 			 rumpkernel/rumpkernel.o rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o \
 			 platform/*.o ${LIBC_DIR}/*.lo -lgcc -lgcc_eh
 	fi
@@ -555,7 +559,7 @@ rumpkernel_install_extra_libs
 ${INSTALL-install} ${RUMP}/lib/*.o ${OUTDIR}/lib
 [ -f ${RUMP}/lib/libg.a ] && ${INSTALL-install} ${RUMP}/lib/libg.a ${OUTDIR}/lib
 ${INSTALL-install} ${RUMPOBJ}/explode/libc.a ${OUTDIR}/lib
-if [ "${HOST}" = "Linux" ]; then
+if [ "${HOST}" = "Linux" ] && [ "${OS}" != "qemu-arm" ]; then
 	${INSTALL-install} ${RUMPOBJ}/explode/libc.so ${OUTDIR}/lib
 	LDSO_PATHNAME="${OUTDIR}/lib/ld-frankenlibc-x86_64-linux.so.1"
 	WD=`pwd`; cd ${OUTDIR}/lib/; ln -sf libc.so ${LDSO_PATHNAME}; cd ${WD}
@@ -565,7 +569,9 @@ fi
 # select these based on compiler defs
 if $(${CC-cc} -v 2>&1 | grep -q clang)
 then
-	TOOL_PREFIX=$(basename $(ls ${RUMPOBJ}/tooldir/bin/*-clang) | sed -e 's/-clang//' -e "s/--netbsd/-rumprun-${RUMP_KERNEL}/")
+	TOOL_PREFIX=$(basename $(ls ${RUMPOBJ}/tooldir/bin/*-clang) | \
+			  sed -e 's/-clang//' -e "s/--netbsdelf-/-rumprun-${RUMP_KERNEL}-/" \
+			      -e "s/--netbsd/-rumprun-${RUMP_KERNEL}/" -e "s/-eabihf//")
 	# possibly some will need to be filtered if compiler complains. Also de-dupe.
 	COMPILER_FLAGS="-fno-stack-protector -Wno-unused-command-line-argument ${EXTRA_CPPFLAGS} ${UNDEF} ${EXTRA_CFLAGS} ${EXTRA_LDSCRIPT_CC}"
 	appendvar COMPILER_FLAGS "-isystem ${OUTDIR}/include -nostdinc"
@@ -601,7 +607,8 @@ then
 else
 	# spec file for gcc
 	TOOL_PREFIX=$(basename $(ls ${RUMPOBJ}/tooldir/bin/*-gcc) | \
-			  sed -e 's/-gcc//' -e "s/--netbsd/-rumprun-${RUMP_KERNEL}/")
+			  sed -e 's/-gcc//' -e "s/--netbsdelf-/-rumprun-${RUMP_KERNEL}-/" \
+			      -e "s/--netbsd/-rumprun-${RUMP_KERNEL}/" -e "s/-eabihf//")
 	COMPILER_FLAGS="-fno-stack-protector ${EXTRA_CFLAGS}"
 	COMPILER_FLAGS="$(echo ${COMPILER_FLAGS} | sed 's/--sysroot=[^ ]*//g')"
 	[ -f ${OUTDIR}/lib/crt0.o ] && appendvar STARTFILE "${OUTDIR}/lib/crt0.o"

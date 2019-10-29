@@ -15,16 +15,21 @@ jobs:
       dist: trusty
       sudo: required
       compiler: clang
+      env:
+        - ARCH=amd64
     - stage: test
       os: linux
       dist: trusty
       sudo: required
       compiler: gcc
+      env:
+        - ARCH=amd64
     - stage: test
       os: osx
       osx_image: xcode10.1
       compiler: clang
       env: DEPLOY=skip
+        - ARCH=amd64
       before_install:
         - mkdir -p ~/.local/bin
         - mkdir ~/junit
@@ -40,6 +45,8 @@ jobs:
       os: osx
       osx_image: xcode10.2
       compiler: clang
+      env:
+        - ARCH=amd64
       before_install:
         - mkdir -p ~/.local/bin
         - mkdir ~/junit
@@ -51,6 +58,18 @@ jobs:
         - ln -sf /usr/local/bin/gdate ~/.local/bin/date
         - ln -sf /usr/local/opt/e2fsprogs/sbin/mkfs.ext4 ~/.local/bin/
         - ln -sf /usr/local/opt/binutils/bin/objcopy ~/.local/bin/objcopy
+    - stage: test
+      os: linux
+      dist: trusty
+      sudo: required
+      compiler: arm-linux-gnueabihf-gcc
+      env:
+        - CC=arm-linux-gnueabihf-gcc
+        - PATH=/usr/lib/ccache/:$HOME/rpi-tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin/:$PATH
+        - ARCH=arm
+      before_install:
+        - git clone https://github.com/raspberrypi/tools $HOME/rpi-tools
+        - sudo ln -s `which ccache` /usr/lib/ccache/arm-linux-gnueabihf-gcc
     - stage: downstream
       before_script:
       script: bash -ex ./.travis-trigger.sh ukontainer/rumprun-packages lkl-musl
@@ -64,5 +83,5 @@ script:
   - for file in `find patches/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
   - for file in `find patches/$TRAVIS_OS_NAME/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
   - ./build.sh -d /opt/rump -q -k linux notest
-  - RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run
+  - if [ $CC != "arm-linux-gnueabihf-gcc" ] ; then RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run ; fi
   - bash -ex ./.travis-deploy.sh $DEPLOY

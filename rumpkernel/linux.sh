@@ -35,11 +35,11 @@ rumpkernel_createuserlib()
 	cd musl
 	LKL_HEADER="${RUMP}/"
 	CIRCLE_TEST_REPORTS="${CIRCLE_TEST_REPORTS-./}"
-	CC=gcc ./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
+	CC=${CC:-gcc} ./configure --with-lkl=${LKL_HEADER} --disable-shared --enable-debug \
 		    --disable-optimize --prefix=${RUMPOBJ}/musl CFLAGS="${EXTRA_CFLAGS}"
 	# XXX: bug of musl Makefile ?
 	${MAKE} obj/src/internal/version.h
-	CC=gcc ${MAKE} install
+	CC=${CC:-gcc} ${MAKE} install
 	# install libraries
 	${INSTALL-install} -d ${OUTDIR}/lib
 	${INSTALL-install} ${RUMPOBJ}/musl/lib/libpthread.a \
@@ -112,9 +112,17 @@ rumpkernel_explode_libc()
 	fi
 
 	cp ${RUMPOBJ}/${RUMP_KERNEL}.o ./
+
+	LKL_CROSS=$(${CC} -dumpmachine)
+	if [ ${LKL_CROSS} = "$(cc -dumpmachine)" ]
+	then
+		LKL_CROSS=
+	else
+		LKL_CROSS=${LKL_CROSS}-
+	fi
 	# XXX: ld.gold generates _end BSS symbol at link time
 	if [ ${OS} = "linux" ] ; then
-		objcopy --redefine-sym _end=rumpns__end ${RUMPOBJ}/linux/tools/lkl/liblkl.a
+		${LKL_CROSS}objcopy --redefine-sym _end=rumpns__end ${RUMPOBJ}/linux/tools/lkl/liblkl.a
 	fi
 )
 	LIBC_DIR=musl
