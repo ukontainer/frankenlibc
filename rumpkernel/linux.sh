@@ -120,7 +120,7 @@ rumpkernel_explode_libc()
 
 	cp ${RUMPOBJ}/${RUMP_KERNEL}.o ./
 
-	LKL_CROSS=$(${CC} -dumpmachine)
+	LKL_CROSS=$(${CC:-gcc} -dumpmachine)
 	if [ ${LKL_CROSS} = "$(cc -dumpmachine)" ]
 	then
 		LKL_CROSS=
