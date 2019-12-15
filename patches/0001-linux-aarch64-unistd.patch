@@ -1,0 +1,12 @@
+diff --git a/linux/arch/lkl/include/uapi/asm/unistd.h b/linux/arch/lkl/include/uapi/asm/unistd.h
+index 53da287e5b5d..811b954c2c17 100644
+--- a/linux/arch/lkl/include/uapi/asm/unistd.h
++++ b/linux/arch/lkl/include/uapi/asm/unistd.h
+@@ -23,5 +23,7 @@
+ #define __NR_clock_gettime			228
+ #elif __arm__		/* arm32 */
+ #define __NR_clock_gettime			263
++#elif __aarch64__   /* aarch64 */
++#define __NR_clock_gettime			113
+ #endif
+ __SC_COMP(__NR_clock_gettime, sys_clock_gettime, compat_sys_clock_gettime)

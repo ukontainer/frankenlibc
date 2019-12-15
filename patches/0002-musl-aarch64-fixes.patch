@@ -1,0 +1,27 @@
+diff --git a/musl/arch/lkl/pthread_arch.h b/musl/arch/lkl/pthread_arch.h
+index 1ae5decd..9ec8bf6e 100644
+--- a/musl/arch/lkl/pthread_arch.h
++++ b/musl/arch/lkl/pthread_arch.h
+@@ -22,4 +22,6 @@ static inline struct pthread *__pthread_self()
+ #define MC_PC gregs[REG_RIP]
+ #elif __arm__
+ #define MC_PC arm_pc
++#elif __aarch64__
++#define MC_PC pc
+ #endif
+diff --git a/musl/configure b/musl/configure
+index 75dad2d5..215303db 100755
+--- a/musl/configure
++++ b/musl/configure
+@@ -356,6 +356,11 @@ LKL_EXCLUDE="$LKL_EXCLUDE $srcdir/src/thread/arm/__set_thread_area.c"
+ echo "";
+ fi
+ 
++if test "$ARCH" = aarch64 ; then
++LKL_EXCLUDE="$LKL_EXCLUDE $srcdir/src/thread/aarch64/__set_thread_area.s"
++echo "";
++fi
++
+ LKL_INCLUDE="$srcdir/arch/lkl/src/*.c"
+ 
+ if [[ "$target" = "x86_64-apple-darwin"* ]] ; then

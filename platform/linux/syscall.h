@@ -2,6 +2,7 @@
 #define _INTERNAL_SYSCALL_H
 
 #include <sys/syscall.h>
+#include <fcntl.h>
 #include "syscall_arch.h"
 
 #define __syscall_ret(v) __platform___syscall_ret(v)

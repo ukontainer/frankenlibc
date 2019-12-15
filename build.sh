@@ -528,7 +528,7 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	do
 		${AR-ar} x $f
 	done
-	${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -Wl,-r *.o -o rumpkernel.o
+	${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -no-pie -Wl,-r *.o -o rumpkernel.o
 
 	cd ${RUMPOBJ}/explode/rumpuser
 	${AR-ar} x ${RUMP}/lib/librumpuser.a
