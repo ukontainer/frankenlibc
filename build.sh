@@ -536,7 +536,15 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	cd ${RUMPOBJ}/explode
 	${AR-ar} cr libc.a rumpkernel/rumpkernel.o rumpuser/*.o ${LIBC_DIR}/*.o franken/*.o platform/*.o
 	if [ "${HOST}" = "Linux" ] && [ "${OS}" != "qemu-arm" ]; then
-		LDFLAGS_LIBCSO="-fuse-ld=gold -Wl,-e,_dlstart -nostdlib -shared"
+		LDFLAGS_LIBCSO="-Wl,-e,_dlstart -nostdlib -shared"
+
+		# XXX: aarch64-gcc has an issue w/ gold
+		# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=830540
+		MACHINE=$(${CC:-gcc} -dumpmachine)
+		if [ ${MACHINE} != "aarch64-linux-gnu" ] ; then
+		    appendvar LDFLAGS_LIBCSO "-fuse-ld=gold"
+		fi
+
 		if [ "${CC}" = "arm-linux-gnueabihf-gcc" ] ; then
 			appendvar LDFLAGS_LIBCSO "-static"
 		fi

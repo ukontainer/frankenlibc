@@ -34,4 +34,6 @@ int sigaction(int sig, const struct sigaction *restrict act,
 
 #define SIG_DFL  ((void (*)(int)) 0)
 
+#define _NSIG 65 /* XXX: incorrect on MIPS */
+
 #endif

@@ -20,6 +20,8 @@
 
 #define FD_CLOEXEC 1
 
+#define AT_FDCWD (-100)
+
 #define fcntl(f, a, b) __platform_fcntl(f, a, b)
 
 int fcntl(int, int, ...);

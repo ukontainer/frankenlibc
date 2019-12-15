@@ -10,7 +10,7 @@ makecontext(ucontext_t *ucp, void (*fn)(void), int argc, void *arg)
 	if (argc != 1) abort();
 
 	/* need to push stack pointer, f as ip and data as first arg */
-	ucp->uc_regs[13] = stack + stack_size - 8; /* grows down */
+	ucp->uc_regs[13] = (stack + stack_size) & -16L; /* grows down */
 	ucp->uc_regs[22] = (unsigned long) fn;
 	ucp->uc_regs[23] = (unsigned long) arg;
 }
