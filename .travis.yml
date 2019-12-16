@@ -1,5 +1,6 @@
 language: c
 cache: ccache
+filter_secrets: false
 git:
   submodules: false
 
@@ -71,9 +72,20 @@ jobs:
         - sudo dpkg --add-architecture armhf
         - sudo apt-get update
         - sudo apt-get install libc6:armhf crossbuild-essential-armhf bc
+    - stage: test
+      arch: arm64
+      os: linux
+      dist: xenial
+      sudo: required
+      compiler: gcc
+      env:
+        - ARCH=aarch64
+      before_install:
+        - sudo apt-get update
+        - sudo apt-get install bc
     - stage: downstream
       before_script:
-      script: bash -ex ./.travis-trigger.sh ukontainer/rumprun-packages lkl-musl
+      script: bash -e ./.travis-trigger.sh ukontainer/rumprun-packages lkl-musl
       os: linux
       if: branch = lkl-musl-macho
 
@@ -88,4 +100,4 @@ script:
   - ./build.sh -d /opt/rump -q -k linux notest
   - travis_fold end "build.sh"
   - RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run
-  - bash -ex ./.travis-deploy.sh $DEPLOY
+  - bash -e ./.travis-deploy.sh $DEPLOY

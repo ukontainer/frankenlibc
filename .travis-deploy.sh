@@ -13,7 +13,7 @@ if [ $TRAVIS_REPO_SLUG != "ukontainer/frankenlibc" ] ||
     exit
 fi
 
-if [ $CC = "gcc" ] ; then
+if [ $CC = "gcc" ] && [ $TRAVIS_ARCH = "amd64" ] ; then
     PUB_FILENAME=frankenlibc-gcc.tar.gz
 fi
 
