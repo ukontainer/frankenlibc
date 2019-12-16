@@ -70,6 +70,17 @@ jobs:
       before_install:
         - git clone https://github.com/raspberrypi/tools $HOME/rpi-tools
         - sudo ln -s `which ccache` /usr/lib/ccache/arm-linux-gnueabihf-gcc
+    - stage: test
+      os: linux
+      dist: xenial
+      sudo: required
+      compiler: aarch64-linux-gnu-gcc
+      env:
+        - CC=aarch64-linux-gnu-gcc
+        - ARCH=aarch64
+      before_install:
+        - sudo apt-get update
+        - sudo apt-get install -y gcc-aarch64-linux-gnu
     - stage: downstream
       before_script:
       script: bash -ex ./.travis-trigger.sh ukontainer/rumprun-packages lkl-musl
@@ -83,5 +94,5 @@ script:
   - for file in `find patches/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
   - for file in `find patches/$TRAVIS_OS_NAME/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
   - ./build.sh -d /opt/rump -q -k linux notest
-  - if [ $CC != "arm-linux-gnueabihf-gcc" ] ; then RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run ; fi
+  - if [ $CC != "arm-linux-gnueabihf-gcc" ] && [ $CC != "aarch64-linux-gnu-gcc" ] ; then RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run ; fi
   - bash -ex ./.travis-deploy.sh $DEPLOY
