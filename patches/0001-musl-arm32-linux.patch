@@ -1,0 +1,35 @@
+diff --git a/musl/configure b/musl/configure
+index 75dad2d5..6ad0c705 100755
+--- a/musl/configure
++++ b/musl/configure
+@@ -345,15 +345,23 @@ printf "yes\n"
+ 
+ CFLAGS_LKL0="-DCONFIG_LKL -I./arch/lkl"
+ CFLAGS_LKL1="-I$lkl_dir/include"
+-LKL_EXCLUDE="$srcdir/src/thread/x86_64/__set_thread_area.s \
+- $srcdir/src/internal/x86_64/syscall.s $srcdir/src/thread/__syscall_cp.c \
+- $srcdir/src/thread/clone.c $srcdir/src/thread/x86_64/clone.s \
+- $srcdir/src/linux/clone.c $srcdir/src/thread/__set_thread_area.c \
+- $srcdir/src/process/x86_64/vfork.s"
++LKL_EXCLUDE="$srcdir/src/thread/__syscall_cp.c \
++ $srcdir/src/thread/clone.c \
++ $srcdir/src/linux/clone.c \
++ $srcdir/src/thread/__set_thread_area.c \
++ $srcdir/src/internal/$ARCH/syscall.s \
++ $srcdir/src/thread/$ARCH/clone.s"
++
++if test "$ARCH" = x86_64 ; then
++LKL_EXCLUDE="$LKL_EXCLUDE \
++ $srcdir/src/thread/$ARCH/__set_thread_area.s \
++ $srcdir/src/process/$ARCH/vfork.s"
++fi;
+ 
+ if test "$ARCH" = arm ; then
+-LKL_EXCLUDE="$LKL_EXCLUDE $srcdir/src/thread/arm/__set_thread_area.c"
+-echo "";
++LKL_EXCLUDE="$LKL_EXCLUDE \
++ $srcdir/src/thread/$ARCH/__set_thread_area.c \
++ $srcdir/src/process/$ARCH/vfork.s"
+ fi
+ 
+ LKL_INCLUDE="$srcdir/arch/lkl/src/*.c"
