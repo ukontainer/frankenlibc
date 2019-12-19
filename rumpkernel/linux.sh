@@ -12,11 +12,12 @@ rumpkernel_buildrump()
 export RUMP_PREFIX=${PWD}/librumpuser/
 export KOPT='buildrump=yes'
 export LKL_EXT_OPT="rumprun=no ${KOPT}"
+export EXTRA_CFLAGS="${EXTRA_CFLAGS}"
 
 ./buildrump/buildrump.sh \
 	-V RUMP_CURLWP=hypercall -V RUMP_LOCKS_UP=yes \
 	-V MKPIC=no -V RUMP_KERNEL_IS_LIBC=1 \
-	-F CFLAGS=-fno-stack-protector \
+	-F CFLAGS="${EXTRA_CFLAGS}" \
 	-k -s ${RUMPSRC} -o ${RUMPOBJ} -d ${RUMP} \
 	${BUILD_QUIET} ${STDJ} \
 	-F AFLAGS="${EXTRA_AFLAGS}" \
