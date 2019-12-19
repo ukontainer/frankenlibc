@@ -10,18 +10,42 @@ index 1ae5decd..9ec8bf6e 100644
 +#define MC_PC pc
  #endif
 diff --git a/musl/configure b/musl/configure
-index 75dad2d5..215303db 100755
+index 75dad2d5..b25dad45 100755
 --- a/musl/configure
 +++ b/musl/configure
-@@ -356,6 +356,11 @@ LKL_EXCLUDE="$LKL_EXCLUDE $srcdir/src/thread/arm/__set_thread_area.c"
- echo "";
- fi
+@@ -345,15 +345,28 @@ printf "yes\n"
  
-+if test "$ARCH" = aarch64 ; then
-+LKL_EXCLUDE="$LKL_EXCLUDE $srcdir/src/thread/aarch64/__set_thread_area.s"
-+echo "";
+ CFLAGS_LKL0="-DCONFIG_LKL -I./arch/lkl"
+ CFLAGS_LKL1="-I$lkl_dir/include"
+-LKL_EXCLUDE="$srcdir/src/thread/x86_64/__set_thread_area.s \
+- $srcdir/src/internal/x86_64/syscall.s $srcdir/src/thread/__syscall_cp.c \
+- $srcdir/src/thread/clone.c $srcdir/src/thread/x86_64/clone.s \
+- $srcdir/src/linux/clone.c $srcdir/src/thread/__set_thread_area.c \
+- $srcdir/src/process/x86_64/vfork.s"
++LKL_EXCLUDE="$srcdir/src/thread/__syscall_cp.c \
++ $srcdir/src/thread/clone.c \
++ $srcdir/src/linux/clone.c \
++ $srcdir/src/thread/__set_thread_area.c \
++ $srcdir/src/internal/$ARCH/syscall.s \
++ $srcdir/src/thread/$ARCH/clone.s"
++
++if test "$ARCH" = x86_64 ; then
++LKL_EXCLUDE="$LKL_EXCLUDE \
++ $srcdir/src/thread/$ARCH/__set_thread_area.s \
++ $srcdir/src/process/$ARCH/vfork.s"
++fi;
+ 
+ if test "$ARCH" = arm ; then
+-LKL_EXCLUDE="$LKL_EXCLUDE $srcdir/src/thread/arm/__set_thread_area.c"
+-echo "";
++LKL_EXCLUDE="$LKL_EXCLUDE \
++ $srcdir/src/thread/$ARCH/__set_thread_area.c \
++ $srcdir/src/process/$ARCH/vfork.s"
 +fi
 +
- LKL_INCLUDE="$srcdir/arch/lkl/src/*.c"
++if test "$ARCH" = aarch64 ; then
++LKL_EXCLUDE="$LKL_EXCLUDE \
++ $srcdir/src/thread/$ARCH/__set_thread_area.s"
+ fi
  
- if [[ "$target" = "x86_64-apple-darwin"* ]] ; then
+ LKL_INCLUDE="$srcdir/arch/lkl/src/*.c"
