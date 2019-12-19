@@ -1,0 +1,12 @@
+diff --git a/linux/tools/lkl/Makefile.autoconf b/linux/tools/lkl/Makefile.autoconf
+index 9ab42b7ce333..27b97ec2a7fd 100644
+--- a/linux/tools/lkl/Makefile.autoconf
++++ b/linux/tools/lkl/Makefile.autoconf
+@@ -114,6 +114,7 @@ define rump_host
+   LDFLAGS += -pie
+   CFLAGS += -fPIC
+   CFLAGS += -I$(RUMP_INCLUDE) -DRUMPUSER -DLIBRUMPUSER -D_KERNEL
++  CFLAGS += $$(EXTRA_CFLAGS)
+   SOSUF := .so
+ 
+   $(if $(filter $(1),elf64-x86-64-freebsd),$(call bsd_host))
