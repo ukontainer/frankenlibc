@@ -601,27 +601,27 @@ then
 	then
 		# can use sysroot with clang
 		printf "#!/bin/sh\n\n${CLANG_PRINT_SYSROOT} \n\nexec ${CC-cc} --sysroot=${OUTDIR} -static ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
-		printf "#!/bin/sh\n\n${CLANG_PRINT_SYSROOT} \n\nexec ${CC-c++} --sysroot=${OUTDIR} -static ${COMPILER_CXX_FLAGS} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang++
+		printf "#!/bin/sh\n\n${CLANG_PRINT_SYSROOT} \n\nexec ${CXX-c++} --sysroot=${OUTDIR} -static ${COMPILER_CXX_FLAGS} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang++
 	else
 		# sysroot does not work with linker eg NetBSD
 		appendvar COMPILER_FLAGS "-I${OUTDIR}/include -L${OUTDIR}/lib -lcrt1.o -B${OUTDIR}/lib"
 		appendvar COMPILER_FLAGS "-nostdinc -lc -nostdlib -static" # -lSystem -nodefaultlibs"
 		printf "#!/bin/sh\n\nexec ${CC-cc} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
-		printf "#!/bin/sh\n\nexec ${CC-c++} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang++
+		printf "#!/bin/sh\n\nexec ${CXX-c++} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang++
 	fi
-	COMPILER="${TOOL_PREFIX}-clang"
 	( cd ${BINDIR}
-	  ln -s ${COMPILER} ${TOOL_PREFIX}-cc
-	  ln -s ${COMPILER} rumprun-cc
-          ln -s ${TOOL_PREFIX}-clang++ ${TOOL_PREFIX}-c++
-          ln -s ${TOOL_PREFIX}-clang++ rumprun-c++
+	  ln -s ${TOOL_PREFIX}-clang ${TOOL_PREFIX}-cc
+	  ln -s ${TOOL_PREFIX}-clang rumprun-cc
+	  ln -s ${TOOL_PREFIX}-clang++ ${TOOL_PREFIX}-c++
+	  ln -s ${TOOL_PREFIX}-clang++ rumprun-c++
 	)
 else
 	# spec file for gcc
 	TOOL_PREFIX=$(basename $(ls ${RUMPOBJ}/tooldir/bin/*-gcc) | \
 			  sed -e 's/-gcc//' -e "s/--netbsdelf-/-rumprun-${RUMP_KERNEL}-/" \
 			      -e "s/--netbsd/-rumprun-${RUMP_KERNEL}/" -e "s/-eabihf//")
-	COMPILER_FLAGS="-fno-stack-protector ${EXTRA_CFLAGS}"
+	COMPILER_CXX_FLAGS="-isystem ${OUTDIR}/include/c++/v1 -D_GNU_SOURCE"
+	COMPILER_FLAGS="-fno-stack-protector ${EXTRA_CFLAGS} ${EXTRA_LDSCRIPT_CC}"
 	COMPILER_FLAGS="$(echo ${COMPILER_FLAGS} | sed 's/--sysroot=[^ ]*//g')"
 	[ -f ${OUTDIR}/lib/crt0.o ] && appendvar STARTFILE "${OUTDIR}/lib/crt0.o"
 	[ -f ${OUTDIR}/lib/crt1.o ] && appendvar STARTFILE "${OUTDIR}/lib/crt1.o"
@@ -643,10 +643,12 @@ else
 		-e "s/--sysroot=[^ ]*//" \
 		> ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec
 	printf "#!/bin/sh\n\nexec ${CC-cc} -specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec ${COMPILER_FLAGS} -nostdinc -isystem ${OUTDIR}/include \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-gcc
-	COMPILER="${TOOL_PREFIX}-gcc"
+	printf "#!/bin/sh\n\nexec ${CXX-c++} -specs ${OUTDIR}/lib/${TOOL_PREFIX}gcc.spec ${COMPILER_CXX_FLAGS} ${COMPILER_FLAGS} -nostdinc -isystem ${OUTDIR}/include \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-g++
 	( cd ${BINDIR}
-	  ln -s ${COMPILER} ${TOOL_PREFIX}-cc
-	  ln -s ${COMPILER} rumprun-cc
+	  ln -s ${TOOL_PREFIX}-gcc ${TOOL_PREFIX}-cc
+	  ln -s ${TOOL_PREFIX}-gcc rumprun-cc
+	  ln -s ${TOOL_PREFIX}-g++ ${TOOL_PREFIX}-c++
+	  ln -s ${TOOL_PREFIX}-g++ rumprun-c++
 	)
 fi
 printf "#!/bin/sh\n\nexec ${AR-ar} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-ar
@@ -697,8 +699,8 @@ fi
 write_log "-n" "building tests.."
 
 # Always make tests to exercise compiler
-CC="${BINDIR}/${COMPILER}" \
-	CXX="${BINDIR}/${COMPILER}++" \
+CC="${BINDIR}/${TOOL_PREFIX}-cc" \
+	CXX="${BINDIR}/${TOOL_PREFIX}-c++" \
 	RUMPDIR="${OUTDIR}" \
 	RUMPOBJ="${RUMPOBJ}" \
 	BINDIR="${BINDIR}" \
@@ -717,8 +719,8 @@ write_log "-n" "running tests.."
 
 if [ ${RUNTESTS} = "test" ]
 then
-	CC="${BINDIR}/${COMPILER}" \
-		CXX="${BINDIR}/${COMPILER}++" \
+	CC="${BINDIR}/${TOOL_PREFIX}-cc" \
+		CXX="${BINDIR}/${TOOL_PREFIX}-c++" \
 		RUMPDIR="${OUTDIR}" \
 		RUMPOBJ="${RUMPOBJ}" \
 		BINDIR="${BINDIR}" \
