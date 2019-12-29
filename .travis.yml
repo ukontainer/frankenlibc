@@ -100,4 +100,4 @@ script:
   - ./build.sh -d /opt/rump -q -k linux notest
   - travis_fold end "build.sh"
   - RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run
-  - bash -e ./.travis-deploy.sh $DEPLOY
+  - if [ $TRAVIS_REPO_SLUG == "ukontainer/frankenlibc" ] ; then bash -e ./.travis-deploy.sh $DEPLOY ; fi
