@@ -7,6 +7,12 @@ if [ x$DEPLOY = "xskip" ] ; then
     exit
 fi
 
+# skip deploy if it's not upstream repo and branch
+if [ $TRAVIS_REPO_SLUG != "ukontainer/frankenlibc" ] ||
+   [ $TRAVIS_BRANCH != "lkl-musl-macho" ] ; then
+    exit
+fi
+
 if [ $CC = "gcc" ] ; then
     PUB_FILENAME=frankenlibc-gcc.tar.gz
 fi
