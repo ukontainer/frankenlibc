@@ -59,17 +59,17 @@ jobs:
         - ln -sf /usr/local/opt/e2fsprogs/sbin/mkfs.ext4 ~/.local/bin/
         - ln -sf /usr/local/opt/binutils/bin/objcopy ~/.local/bin/objcopy
     - stage: test
+      arch: arm64
       os: linux
       dist: xenial
       sudo: required
       compiler: arm-linux-gnueabihf-gcc
       env:
-        - CC=arm-linux-gnueabihf-gcc
-        - PATH=/usr/lib/ccache/:$HOME/rpi-tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin/:$PATH
         - ARCH=arm
       before_install:
-        - git clone https://github.com/raspberrypi/tools $HOME/rpi-tools
-        - sudo ln -s `which ccache` /usr/lib/ccache/arm-linux-gnueabihf-gcc
+        - sudo dpkg --add-architecture armhf
+        - sudo apt-get update
+        - sudo apt-get install libc6:armhf crossbuild-essential-armhf bc
     - stage: downstream
       before_script:
       script: bash -ex ./.travis-trigger.sh ukontainer/rumprun-packages lkl-musl
@@ -77,8 +77,7 @@ jobs:
       if: branch = lkl-musl-macho
 
 before_script:
-  - travis_wait 30 git submodule update --init llvm
-  - travis_wait 30 git submodule update --init --depth=50
+  - travis_wait 30 git submodule update --init
   - export -f travis_fold
 script:
   - sudo mkdir -p /opt/rump && sudo chown -R $USER /opt/
@@ -87,5 +86,5 @@ script:
   - travis_fold start "build.sh"
   - ./build.sh -d /opt/rump -q -k linux notest
   - travis_fold end "build.sh"
-  - if [ $CC != "arm-linux-gnueabihf-gcc" ] ; then RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run ; fi
+  - RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run
   - bash -ex ./.travis-deploy.sh $DEPLOY
