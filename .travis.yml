@@ -59,6 +59,23 @@ jobs:
         - ln -sf /usr/local/opt/e2fsprogs/sbin/mkfs.ext4 ~/.local/bin/
         - ln -sf /usr/local/opt/binutils/bin/objcopy ~/.local/bin/objcopy
     - stage: test
+      os: osx
+      osx_image: xcode11.3
+      compiler: clang
+      env: DEPLOY=skip
+        - ARCH=amd64
+      before_install:
+        - mkdir -p ~/.local/bin
+        - mkdir ~/junit
+        - export PATH=/usr/local/opt/ccache/libexec:$HOME/.local/bin:$PATH
+        - HOMEBREW_NO_AUTO_UPDATE=1 brew install gnu-sed ccache e2fsprogs
+        - HOMEBREW_NO_AUTO_UPDATE=1 brew install binutils
+        - pip install --user yamlish junit_xml
+        - ln -sf /usr/local/bin/gsed ~/.local/bin/sed
+        - ln -sf /usr/local/bin/gdate ~/.local/bin/date
+        - ln -sf /usr/local/opt/e2fsprogs/sbin/mkfs.ext4 ~/.local/bin/
+        - ln -sf /usr/local/opt/binutils/bin/objcopy ~/.local/bin/objcopy
+    - stage: test
       os: linux
       dist: xenial
       sudo: required
