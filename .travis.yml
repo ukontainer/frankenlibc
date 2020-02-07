@@ -59,29 +59,29 @@ jobs:
         - ln -sf /usr/local/opt/e2fsprogs/sbin/mkfs.ext4 ~/.local/bin/
         - ln -sf /usr/local/opt/binutils/bin/objcopy ~/.local/bin/objcopy
     - stage: test
+      arch: arm64
       os: linux
       dist: xenial
       sudo: required
-      compiler: arm-linux-gnueabihf-gcc
+      compiler: arm-linux-gnueabihf-gcc-5
       env:
-        - CC=arm-linux-gnueabihf-gcc
-        - PATH=/usr/lib/ccache/:$HOME/rpi-tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin/:$PATH
+        - CC=arm-linux-gnueabihf-gcc-5
         - ARCH=arm
       before_install:
-        - git clone https://github.com/raspberrypi/tools $HOME/rpi-tools
-        - sudo ln -s `which ccache` /usr/lib/ccache/arm-linux-gnueabihf-gcc
+        - sudo apt-get update
+        - sudo apt-get install -y gcc-5-arm-linux-gnueabihf
+        - sudo ln -s `which ccache` /usr/lib/ccache/arm-linux-gnueabihf-gcc-5
     - stage: downstream
       before_script:
       script: bash -ex ./.travis-trigger.sh ukontainer/rumprun-packages lkl-musl
       os: linux
 
 before_script:
-  - travis_wait 30 git submodule update --init llvm
-  - travis_wait 30 git submodule update --init --depth=50
+  - travis_wait 30 git submodule update --init
 script:
   - sudo mkdir -p /opt/rump && sudo chown -R $USER /opt/
   - for file in `find patches/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
   - for file in `find patches/$TRAVIS_OS_NAME/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
   - ./build.sh -d /opt/rump -q -k linux notest
-  - if [ $CC != "arm-linux-gnueabihf-gcc" ] ; then RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run ; fi
+  - RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run
   - bash -ex ./.travis-deploy.sh $DEPLOY
