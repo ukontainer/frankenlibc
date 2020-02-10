@@ -74,6 +74,7 @@ jobs:
       before_script:
       script: bash -ex ./.travis-trigger.sh ukontainer/rumprun-packages lkl-musl
       os: linux
+      if: branch = lkl-musl-macho
 
 before_script:
   - travis_wait 30 git submodule update --init llvm
