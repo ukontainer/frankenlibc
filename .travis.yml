@@ -78,10 +78,13 @@ jobs:
 before_script:
   - travis_wait 30 git submodule update --init llvm
   - travis_wait 30 git submodule update --init --depth=50
+  - export -f travis_fold
 script:
   - sudo mkdir -p /opt/rump && sudo chown -R $USER /opt/
   - for file in `find patches/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
   - for file in `find patches/$TRAVIS_OS_NAME/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
+  - travis_fold start "build.sh"
   - ./build.sh -d /opt/rump -q -k linux notest
+  - travis_fold end "build.sh"
   - if [ $CC != "arm-linux-gnueabihf-gcc" ] ; then RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run ; fi
   - bash -ex ./.travis-deploy.sh $DEPLOY
