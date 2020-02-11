@@ -64,6 +64,7 @@ jobs:
       dist: xenial
       sudo: required
       compiler: arm-linux-gnueabihf-gcc
+      filter_secrets: false # https://travis-ci.community/t/arm64-required-filter-secrets-false/5403/2
       env:
         - ARCH=arm
       before_install:
