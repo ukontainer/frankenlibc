@@ -13,7 +13,7 @@ DEPS=$(LIBDIR)/libc.a
 
 OBJ=$(OBJDIR)/hello $(OBJDIR)/ctor $(OBJDIR)/cat
 OBJ+=$(OBJDIR)/fork-test $(OBJDIR)/hello-pthread
-OBJ+=$(OBJDIR)/lkick
+OBJ+=$(OBJDIR)/lkick $(OBJDIR)/misc
 ifneq ($(wildcard $(CXX)),)
 OBJ+=$(OBJDIR)/hellopp
 endif
@@ -35,6 +35,7 @@ ifneq ($(wildcard $(OBJDIR)/ping),)
 			${REXEC} ${OBJDIR}/ping6 rootfs:disk.img -- -c 3 ::1
 endif
 			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/fork-test rootfs:disk.img
+			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/misc
 			${REXEC} $(OBJDIR)/hello-pthread
 ifneq ($(wildcard $(OBJDIR)/hellopp),)
 			${REXEC} $(OBJDIR)/hellopp
@@ -68,6 +69,10 @@ $(OBJDIR)/fork-test:	fork-test.c $(DEPS)
 $(OBJDIR)/lkick:	lkick.c $(DEPS)
 			@mkdir -p $(OBJDIR)
 			${CC} ${CFLAGS} ${LDFLAGS} -o $@ lkick.c
+
+$(OBJDIR)/misc:		misc.c $(DEPS)
+			@mkdir -p $(OBJDIR)
+			${CC} ${CFLAGS} ${LDFLAGS} -o $@ misc.c
 
 .PHONY:			test clean
 clean:		
