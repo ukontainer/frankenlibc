@@ -38,6 +38,10 @@ export RUMPOBJ
 EXTRA_AFLAGS="-Wa,--noexecstack"
 EXTRA_CFLAGS="-fPIC"
 
+if [ -n "$(${CC-cc} -v 2>&1 | grep "enable-default-pie")" ]; then
+  LDFLAGS_NO_PIE="-no-pie"
+fi
+
 TARGET=$(LC_ALL=C ${CC-cc} -v 2>&1 | sed -n 's/^Target: //p' )
 
 case ${TARGET} in
@@ -528,7 +532,7 @@ mkdir -p ${RUMPOBJ}/explode/platform
 	do
 		${AR-ar} x $f
 	done
-	${CC-cc} ${EXTRA_LDFLAGS} -nostdlib -Wl,-r *.o -o rumpkernel.o
+	${CC-cc} ${EXTRA_LDFLAGS} ${LDFLAGS_NO_PIE} -nostdlib -Wl,-r *.o -o rumpkernel.o
 
 	cd ${RUMPOBJ}/explode/rumpuser
 	${AR-ar} x ${RUMP}/lib/librumpuser.a
