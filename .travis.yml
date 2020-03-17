@@ -79,7 +79,7 @@ jobs:
       sudo: required
       compiler: gcc
       env:
-        - ARCH=aarch64
+        - ARCH=arm64
       before_install:
         - sudo apt-get update
         - sudo apt-get install bc
