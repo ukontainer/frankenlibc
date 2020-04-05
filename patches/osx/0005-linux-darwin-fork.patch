@@ -1,0 +1,14 @@
+diff --git a/linux/arch/lkl/kernel/threads.c b/linux/arch/lkl/kernel/threads.c
+index 7688e62e7b24..edf56033051d 100644
+--- a/linux/arch/lkl/kernel/threads.c
++++ b/linux/arch/lkl/kernel/threads.c
+@@ -157,7 +157,8 @@ void inline lkl_restore_register(struct task_struct *task)
+ 	unsigned long newrbp, stack_size;
+ 
+ #define RESTORE_REG(r)				\
+-	asm("mov %0, %%"#r :: "m"(task_pt_regs(task)->regs.r));
++	asm("mov %0, %%"#r :: "m"(task_pt_regs(task)->regs.r) \
++        : "r15", "r14", "r13", "r12");
+ 
+ 	/* XXX: copy & restore sp, need to free... */
+ #define FORK_STACK_SIZE 1200
