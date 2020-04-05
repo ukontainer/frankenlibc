@@ -1,0 +1,12 @@
+diff --git a/linux/tools/lkl/Makefile.autoconf b/linux/tools/lkl/Makefile.autoconf
+index 9ab42b7ce333..2f02a5b96888 100644
+--- a/linux/tools/lkl/Makefile.autoconf
++++ b/linux/tools/lkl/Makefile.autoconf
+@@ -38,6 +38,7 @@ define macos_host
+   KBUILD_CLANG_CFLAGS += -Wno-uninitialized -Wno-sometimes-uninitialized
+   KBUILD_CLANG_CFLAGS += -Wno-address-of-packed-member -Wno-unused-value
+   KBUILD_CLANG_CFLAGS += -Wno-return-stack-address
++  KBUILD_CLANG_CFLAGS += -fno-stack-check
+   export KBUILD_CLANG_CFLAGS
+ 
+   CFLAGS += $$(KBUILD_CLANG_CFLAGS)
