@@ -620,8 +620,8 @@ else
 	TOOL_PREFIX=$(basename $(ls ${RUMPOBJ}/tooldir/bin/*-gcc) | \
 			  sed -e 's/-gcc//' -e "s/--netbsdelf-/-rumprun-${RUMP_KERNEL}-/" \
 			      -e "s/--netbsd/-rumprun-${RUMP_KERNEL}/" -e "s/-eabihf//")
-	COMPILER_CXX_FLAGS="-isystem ${OUTDIR}/include/c++/v1 -D_GNU_SOURCE"
-	COMPILER_FLAGS="-fno-stack-protector ${EXTRA_CFLAGS} ${EXTRA_LDSCRIPT_CC}"
+	COMPILER_CXX_FLAGS="-isystem ${OUTDIR}/include/c++/v1 -D_GNU_SOURCE -std=c++11"
+	COMPILER_FLAGS="-fno-stack-protector ${EXTRA_CFLAGS}"
 	COMPILER_FLAGS="$(echo ${COMPILER_FLAGS} | sed 's/--sysroot=[^ ]*//g')"
 	[ -f ${OUTDIR}/lib/crt0.o ] && appendvar STARTFILE "${OUTDIR}/lib/crt0.o"
 	[ -f ${OUTDIR}/lib/crt1.o ] && appendvar STARTFILE "${OUTDIR}/lib/crt1.o"
