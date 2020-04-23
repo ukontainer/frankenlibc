@@ -59,9 +59,9 @@ $(CRTDIR)/crtn.o:
 				@mkdir -p $(CRTDIR)
 				printf "\n" | $(COMPILE.c) -o $@ -x c -
 
-$(CRTDIR)/crtbegin.o:
+$(CRTDIR)/crtbegin.o:	crtbegin.c
 				@mkdir -p $(CRTDIR)
-				printf "\n" | $(COMPILE.c) -o $@ -x c -
+				$(COMPILE.c) -o $@ crtbegin.c
 
 $(CRTDIR)/crtbeginT.o:
 				@mkdir -p $(CRTDIR)
