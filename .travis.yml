@@ -68,7 +68,7 @@ jobs:
       before_install:
         - sudo dpkg --add-architecture armhf
         - sudo apt-get update || true
-        - sudo apt-get install libc6:armhf crossbuild-essential-armhf bc
+        - sudo apt-get install libc6:armhf crossbuild-essential-armhf g++-arm-linux-gnueabihf bc
     - stage: test
       arch: arm64
       os: linux
@@ -78,7 +78,7 @@ jobs:
         - ARCH=arm64
       before_install:
         - sudo apt-get update || true
-        - sudo apt-get install bc
+        - sudo apt-get install g++ bc
     - stage: downstream
       before_script:
       script: bash -e ./.travis-trigger.sh ukontainer/rumprun-packages lkl-musl
