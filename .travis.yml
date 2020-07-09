@@ -88,7 +88,8 @@ jobs:
       if: branch = lkl-musl-macho
 
 before_script:
-  - travis_wait 30 git submodule update --init
+  - if [ $TRAVIS_OS_NAME == "osx" ] ; then travis_wait 30 git submodule update --init --depth=50 ; fi
+  - if [ $TRAVIS_OS_NAME != "osx" ] ; then travis_wait 30 git submodule update --init ; fi
   - export -f travis_fold
 script:
   - sudo mkdir -p /opt/rump && sudo chown -R $USER /opt/
