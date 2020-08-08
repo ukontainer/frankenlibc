@@ -21,6 +21,7 @@ extern struct pollfd __platform_pollfd[MAXFD];
 // Signal handler for when code tries to use %fs.
 static void handle_sigsegv(int sig, siginfo_t *si, void *ucp) {
 	ucontext_t *uc = ucp;
+#ifdef __x86_64__
 	unsigned char *p = (unsigned char *)uc->uc_mcontext->ss.rip;
 	if (*p == 0x64) {
 		// Instruction starts with 0x64, meaning it tries to access %fs. By
@@ -41,11 +42,13 @@ static void handle_sigsegv(int sig, siginfo_t *si, void *ucp) {
 		sigemptyset(&sa.sa_mask);
 		__platform_sigaction(SIGSEGV, &sa, NULL);
 	}
+#endif
 }
 
 
 void __darwin_tls_init(void)
 {
+#ifdef __x86_64__
 	/* https://github.com/NuxiNL/cloudabi-utils/blob/38d845bc5cc6fcf441fe0d3c2433f9298cbeb760/src/libemulator/tls.c#L30-L53 */
 	// On OS X there doesn't seem to be any way to modify the %fs base.
 	// Let's use %gs instead. Install a signal handler for SIGSEGV to
@@ -64,6 +67,7 @@ void __darwin_tls_init(void)
 	__asm__("mov %0, %%rdi;" :: "m"(tcb));
 	__asm__("movl $0x3000003, %eax;");
 	__asm__("syscall");
+#endif
 }
 
 int

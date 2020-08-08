@@ -1,0 +1,527 @@
+Submodule linux contains untracked content
+Submodule linux contains modified content
+diff --git a/linux/arch/lkl/Kconfig b/linux/arch/lkl/Kconfig
+index dc0cd56f6503..e269888f6021 100644
+--- a/linux/arch/lkl/Kconfig
++++ b/linux/arch/lkl/Kconfig
+@@ -42,6 +42,7 @@ config LKL
+        select IPV6_ADVANCED_ROUTER
+        select ARCH_NO_COHERENT_DMA_MMAP
+        select HAVE_UNDERSCORE_SYMBOL_PREFIX if "$(OUTPUT_FORMAT)" = "mach-o-x86-64"
++       select ARCH_HAS_SYSCALL_WRAPPER if "$(OUTPUT_FORMAT)" = "mach-o-x86-64"
+        select FUTEX
+        select FILE_LOCKING
+        select BINFMT_ELF_FDPIC
+diff --git a/linux/arch/lkl/Makefile b/linux/arch/lkl/Makefile
+index 41c61ca6d9a2..1f780c6a7c64 100644
+--- a/linux/arch/lkl/Makefile
++++ b/linux/arch/lkl/Makefile
+@@ -88,7 +88,16 @@ all: lkl.o
+ vmlinux:
+ 
+ lkl.o: vmlinux
++ifneq ($(OUTPUT_FORMAT),mach-o-x86-64)
++	$(call make_ns_symbols,vmlinux,lkl.o)
++else
++# arm64 macos doesn't have objcopy yet
++ifeq ($(shell arch),arm64)
++	cp vmlinux lkl.o
++else
+ 	$(call make_ns_symbols,vmlinux,lkl.o)
++endif
++endif
+ 
+ arch/lkl/include/generated/uapi/asm/syscall_defs.h: vmlinux
+ ifneq ($(OUTPUT_FORMAT),mach-o-x86-64)
+diff --git a/linux/arch/lkl/include/asm/syscall_wrapper.h b/linux/arch/lkl/include/asm/syscall_wrapper.h
+new file mode 100644
+index 000000000000..e3b9f9a9d3cb
+--- /dev/null
++++ b/linux/arch/lkl/include/asm/syscall_wrapper.h
+@@ -0,0 +1,74 @@
++#ifndef _MACH_LKL_LINUX_SYSCALLS_H
++#define _MACH_LKL_LINUX_SYSCALLS_H
++
++#if defined(__APPLE__) && defined(__arm64__)
++#include <stdarg.h>
++#pragma clang diagnostic ignored "-Wint-conversion"
++#endif
++
++#define __ARGS0
++#define __ARGS1 arg1
++#define __ARGS2 arg1, arg2
++#define __ARGS3 arg1, arg2, arg3
++#define __ARGS4 arg1, arg2, arg3, arg4
++#define __ARGS5 arg1, arg2, arg3, arg4, arg5
++#define __ARGS6 arg1, arg2, arg3, arg4, arg5, arg6
++
++#ifdef __APPLE__
++
++#ifdef __arm64__
++/* XXX: ios/macos arm64 calling convension doesn't allow us use
++ * variadic function without va_list, thus a nasty conversion requires.
++ */
++#define SYSCALL_SYS_FUNC(x, name, ...)					\
++	asmlinkage long sys##name(long arg1, ...) \
++		__attribute__((alias(__stringify(SyS##name))));		\
++	asmlinkage long sys##name(long arg1, ...)			\
++	{								\
++		long arg2, arg3, arg4, arg5, arg6, ret;		\
++									\
++		va_list ap;						\
++		va_start(ap, arg1);					\
++		arg2 = va_arg(ap, long);				\
++		arg3 = va_arg(ap, long);				\
++		arg4 = va_arg(ap, long);				\
++		arg5 = va_arg(ap, long);				\
++		arg6 = va_arg(ap, long);				\
++		va_end(ap);						\
++		ret = SYSC##name(__ARGS##x); \
++		__MAP(x,__SC_TEST,__VA_ARGS__);				\
++		__PROTECT(x, ret,__MAP(x,__SC_ARGS,__VA_ARGS__));	\
++		return ret;						\
++	}
++#else
++#define SYSCALL_SYS_FUNC(x, name, ...)					\
++	asmlinkage long sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))			\
++		__attribute__((alias(__stringify(SyS##name))));		\
++	asmlinkage long sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
++	{								\
++		long ret = SYSC##name(__MAP(x,__SC_CAST,__VA_ARGS__));	\
++		__MAP(x,__SC_TEST,__VA_ARGS__);				\
++		__PROTECT(x, ret,__MAP(x,__SC_ARGS,__VA_ARGS__));	\
++		return ret;						\
++	}
++#endif
++
++#endif
++
++#undef __SYSCALL_DEFINEx
++#define __PROTECT(...) asmlinkage_protect(__VA_ARGS__)
++#define __SYSCALL_DEFINEx(x, name, ...)					\
++	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
++	asmlinkage long SyS##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
++	asmlinkage long SyS##name(__MAP(x,__SC_LONG,__VA_ARGS__))	\
++	{								\
++		long ret = SYSC##name(__MAP(x,__SC_CAST,__VA_ARGS__));	\
++		__MAP(x,__SC_TEST,__VA_ARGS__);				\
++		__PROTECT(x, ret,__MAP(x,__SC_ARGS,__VA_ARGS__));	\
++		return ret;						\
++	}								\
++	/* due to lack of alias support on mach-o */			\
++	SYSCALL_SYS_FUNC(x, name, __VA_ARGS__)				\
++	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__))
++
++#endif
+diff --git a/linux/arch/lkl/include/asm/unistd.h b/linux/arch/lkl/include/asm/unistd.h
+index 69f2a1de433d..ba8ee4c4cfb0 100644
+--- a/linux/arch/lkl/include/asm/unistd.h
++++ b/linux/arch/lkl/include/asm/unistd.h
+@@ -1,6 +1,5 @@
+ #include <uapi/asm/unistd.h>
+ 
+-__SYSCALL(__NR_virtio_mmio_device_add, sys_virtio_mmio_device_add)
+ __SYSCALL(__NR_vfork, sys_vfork)
+ 
+ #define __SC_ASCII(t, a) #t "," #a
+diff --git a/linux/arch/lkl/include/mach/linux/syscalls.h b/linux/arch/lkl/include/mach/linux/syscalls.h
+deleted file mode 100644
+index 84b3958939df..000000000000
+--- a/linux/arch/lkl/include/mach/linux/syscalls.h
++++ /dev/null
+@@ -1,30 +0,0 @@
+-#ifndef _MACH_LKL_LINUX_SYSCALLS_H
+-#define _MACH_LKL_LINUX_SYSCALLS_H
+-
+-#include "../../../../../include/linux/syscalls.h"
+-
+-#undef __SYSCALL_DEFINEx
+-#define __PROTECT(...) asmlinkage_protect(__VA_ARGS__)
+-#define __SYSCALL_DEFINEx(x, name, ...)					\
+-	asmlinkage long sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
+-		__attribute__((alias(__stringify(SyS##name))));		\
+-	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
+-	asmlinkage long SyS##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
+-	asmlinkage long SyS##name(__MAP(x,__SC_LONG,__VA_ARGS__))	\
+-	{								\
+-		long ret = SYSC##name(__MAP(x,__SC_CAST,__VA_ARGS__));	\
+-		__MAP(x,__SC_TEST,__VA_ARGS__);				\
+-		__PROTECT(x, ret,__MAP(x,__SC_ARGS,__VA_ARGS__));	\
+-		return ret;						\
+-	}								\
+-	/* due to lack of alias support on mach-o */			\
+-	asmlinkage long sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
+-	{								\
+-		long ret = SYSC##name(__MAP(x,__SC_CAST,__VA_ARGS__));	\
+-		__MAP(x,__SC_TEST,__VA_ARGS__);				\
+-		__PROTECT(x, ret,__MAP(x,__SC_ARGS,__VA_ARGS__));	\
+-		return ret;						\
+-	}								\
+-	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__))
+-
+-#endif
+diff --git a/linux/arch/lkl/kernel/console.c b/linux/arch/lkl/kernel/console.c
+index 24da2b82f316..d85b35de2cca 100644
+--- a/linux/arch/lkl/kernel/console.c
++++ b/linux/arch/lkl/kernel/console.c
+@@ -171,7 +171,7 @@ static int __init lkl_memdev_init(void)
+ 	int err;
+ 
+ 	/* prepare /dev/null */
+-	err = sys_mknod((const char __user __force *) "/dev/null",
++	err = ksys_mknod((const char __user __force *) "/dev/null",
+ 			S_IFCHR | 0600, new_encode_dev(MKDEV(MEM_MAJOR, 3)));
+ 	if (err < 0) {
+ 		pr_err("can't register /dev/null.\n");
+diff --git a/linux/arch/lkl/kernel/setup.c b/linux/arch/lkl/kernel/setup.c
+index 04fdd95aa1cf..5929136bb2c5 100644
+--- a/linux/arch/lkl/kernel/setup.c
++++ b/linux/arch/lkl/kernel/setup.c
+@@ -182,9 +182,9 @@ static int __init fs_setup(void)
+ {
+ 	int fd;
+ 
+-	fd = sys_open("/init", O_CREAT, 0700);
++	fd = ksys_open("/init", O_CREAT, 0700);
+ 	WARN_ON(fd < 0);
+-	sys_close(fd);
++	ksys_close(fd);
+ 
+ 	register_binfmt(&lkl_run_init_binfmt);
+ 
+diff --git a/linux/arch/lkl/kernel/syscalls.c b/linux/arch/lkl/kernel/syscalls.c
+index 2940c5a440f4..2ceea6a2357a 100644
+--- a/linux/arch/lkl/kernel/syscalls.c
++++ b/linux/arch/lkl/kernel/syscalls.c
+@@ -16,11 +16,25 @@
+ #include <asm/cpu.h>
+ #include <asm/sched.h>
+ 
++#ifdef RUMPUSER
++void __sched_schedule(void);
++void rump_platform_exit(void);
++#endif
++
++#if defined(__APPLE__) && defined(__arm64__)
++asmlinkage long sys_virtio_mmio_device_add(long arg1, ...);
++#else
+ static asmlinkage long sys_virtio_mmio_device_add(long base, long size,
+ 						  unsigned int irq);
++#endif
++
++#undef __SYSCALL
++#define __SYSCALL(nr, sym) long sym(long arg1, ...);
++#include <asm/unistd.h>
+ 
+ typedef long (*syscall_handler_t)(long arg1, ...);
+ 
++
+ #undef __SYSCALL
+ #define __SYSCALL(nr, sym) [nr] = (syscall_handler_t)sym,
+ 
+@@ -47,7 +61,6 @@ static long run_syscall(long no, long *params)
+ 
+ #ifdef RUMPUSER
+ 	/* XXX: maybe need lkl_ops->thread_yield() ? */
+-	void __sched_schedule(void);
+ 	__sched_schedule();
+ #endif
+ 
+@@ -183,7 +196,6 @@ long lkl_syscall(long no, long *params)
+ 	}
+ 
+ #ifdef RUMPUSER
+-	void rump_platform_exit(void);
+ 	if (no == __NR_exit || no == __NR_exit_group)
+ 		rump_platform_exit();
+ #endif
+diff --git a/linux/arch/lkl/kernel/vmlinux-mach-o.lds.S b/linux/arch/lkl/kernel/vmlinux-mach-o.lds.S
+index 0b111c97e1ce..7a0b70129f56 100644
+--- a/linux/arch/lkl/kernel/vmlinux-mach-o.lds.S
++++ b/linux/arch/lkl/kernel/vmlinux-mach-o.lds.S
+@@ -1,99 +1,124 @@
+-#include <asm/vmlinux.lds.h>
+-#include <asm/thread_info.h>
+-#include <asm/page.h>
+-#include <asm/cache.h>
++.macro INIT_CALLS_LEVEL level
++	.section	__DATA,.initcall\()\level;
++	.globl  	___initcall\()\level\()_start;
++	.p2align        3;
++___initcall\()\level\()_start = .;
++.endm
+ 
+-#undef INIT_CALLS_LEVEL
+-#define INIT_CALLS_LEVEL(level)			\
+-	.section	__DATA,.initcall##level;	\
+-	.globl  	___initcall##level##_start;	\
+-	.p2align        3;				\
+-___initcall##level##_start:
++.macro VMLINUX_SYMBOL sym
++	.globl  	_\sym;
++	.p2align        3;
++	_\sym = .;
++	_\sym:
++.endm
+ 
+-#undef VMLINUX_SYMBOL
+-#define VMLINUX_SYMBOL(x) .globl _##x ; _##x
++.macro CON_INITCALL
++	VMLINUX_SYMBOL __con_initcall_start;
++	VMLINUX_SYMBOL __con_initcall_end;
++.endm
+ 
+-#define KEEP(x)
+-#define ALIGN(x) .p2align 3
+-#define AT(x)
+-#define ADDR(x)
+-
+-#undef INIT_CALLS
+ # XXX: dunno why crash INIT_CALLS_LEVEL(early);
+-#define INIT_CALLS						\
+-	.section __DATA,.initcall_start; .globl ___initcall_start; \
+-	.p2align        3; ___initcall_start:		\
+-	INIT_CALLS_LEVEL(early);				\
+-	INIT_CALLS_LEVEL(0)					\
+-	INIT_CALLS_LEVEL(1)					\
+-	INIT_CALLS_LEVEL(2)					\
+-	INIT_CALLS_LEVEL(3)					\
+-	INIT_CALLS_LEVEL(4)					\
+-	INIT_CALLS_LEVEL(5)					\
+-	INIT_CALLS_LEVEL(rootfs)				\
+-	INIT_CALLS_LEVEL(6)					\
+-	INIT_CALLS_LEVEL(7)					\
+-	.section __DATA,.initcall_end; .globl ___initcall_end; \
+-	.p2align        3; ___initcall_end:
++.macro INIT_CALLS
++	.section __DATA,.initcall_start;
++	.globl ___initcall_start;
++	.p2align        3;
++___initcall_start:
++	INIT_CALLS_LEVEL early;
++	INIT_CALLS_LEVEL 0;
++	INIT_CALLS_LEVEL 1;
++	INIT_CALLS_LEVEL 2;
++	INIT_CALLS_LEVEL 3;
++	INIT_CALLS_LEVEL 4;
++	INIT_CALLS_LEVEL 5;
++	INIT_CALLS_LEVEL rootfs;
++	INIT_CALLS_LEVEL 6;
++	INIT_CALLS_LEVEL 7;
++	.section __DATA,.initcall_end;
++	.globl ___initcall_end;
++	.p2align        3;
++___initcall_end:
++.endm
+ 
+-#define INIT_PARAMS					\
+-	.section __DATA,__param0; .globl ___start___param;	\
+-	.p2align        3; ___start___param = .; ___start___param:\
+-	.section __DATA,__param; .globl ___param;		\
+-	.p2align        3; ___param:				\
+-	.section __DATA,__param1; .globl ___stop___param;	\
+-	.p2align        3; ___stop___param = .; ___stop___param:
++.macro INIT_PARAMS
++	.section __DATA,__param0;
++	VMLINUX_SYMBOL __start___param;
++	.section __DATA,__param;
++	.globl ___param;
++	.p2align        3;
++	___param:
++	.section __DATA,__param1;
++	VMLINUX_SYMBOL __stop___param;
++.endm
+ 
+-#undef INIT_SETUP
+-#define INIT_SETUP						\
+-	.section __DATA,.init.setup0; .globl ___setup_start;	\
+-	.p2align        3; ___setup_start = .;  ___setup_start:\
+-	.section __DATA,.init.setup; .globl ___init_setup;	\
+-	.p2align        3; ___init_setup:			\
+-	.section __DATA,.init.setup1; .globl ___setup_end;	\
+-	.p2align        3; ___setup_end = .; ___setup_end:
++.macro INIT_SETUP
++	.section __DATA,.init.setup0;
++	VMLINUX_SYMBOL __setup_start;
++	.section __DATA,.init.setup;
++	.globl ___init_setup;
++	.p2align        3;
++	___init_setup:
++	.section __DATA,.init.setup1;
++	VMLINUX_SYMBOL __setup_end;
++.endm
+ 
+-#define INIT_MODVER						\
+-	.section __DATA,___modver0; .globl ___start___modver;	\
+-	.p2align        3; ___start___modver = .;  ___start___modver:\
+-	.section __DATA,___modver; .globl ___modver;	\
+-	.p2align        3; ___modver:			\
+-	.section __DATA,___modver1; .globl ___stop___modver;	\
+-	.p2align        3; ___stop___modver = .; ___stop___modver:
++.macro INIT_MODVER
++	.section __DATA,___modver0;
++	VMLINUX_SYMBOL __start___modver;
++	.section __DATA,___modver;
++	.globl ___modver;
++	.p2align        3;
++	___modver:
++	.section __DATA,___modver1;
++	VMLINUX_SYMBOL __stop___modver;
++.endm
+ 
+ # definitions
+-	.section __DATA,.jiffies; .globl _jiffies;
+-	.p2align        3; _jiffies = .; _jiffies:
++.section __DATA,.jiffies;
++VMLINUX_SYMBOL jiffies;
++
++.section __DATA,.init_thread_u;
++VMLINUX_SYMBOL init_thread_union;
++
++.section __DATA,.init_stack;
++VMLINUX_SYMBOL init_stack;
+ 
+-	.section __DATA,.init_thread_u; .globl _init_thread_union;
+-	.p2align        3; _init_thread_union = .; _init_thread_union:
+-	.section __DATA,.init_stack; .globl _init_stack;
+-	.p2align        3; _init_stack = .; _init_stack:
+-	.section __DATA,.data..init_thr;
+-	.p2align        3; _init_thread_info = .; _init_thread_info:
++.section __DATA,.data..init_thr;
++	.p2align        3;
++	_init_thread_info = .;
++	_init_thread_info:
+ 
+ 
+-VMLINUX_SYMBOL(__init_begin) = .; VMLINUX_SYMBOL(__init_end) = .;
++.section __DATA,.data..rest;
++VMLINUX_SYMBOL __init_begin
++VMLINUX_SYMBOL __init_end
+ # __TEXT segment
+-VMLINUX_SYMBOL(_sinittext) = . ; VMLINUX_SYMBOL(_einittext) = . ;
+-VMLINUX_SYMBOL(_stext) = . ;
+-VMLINUX_SYMBOL(_text) = . ; VMLINUX_SYMBOL(text) = . ;
+-VMLINUX_SYMBOL(__sched_text_start) = . ; VMLINUX_SYMBOL(__sched_text_end) = . ;
+-VMLINUX_SYMBOL(__cpuidle_text_start) = . ; VMLINUX_SYMBOL(__cpuidle_text_end) = . ;
+-VMLINUX_SYMBOL(_etext) = . ;
++VMLINUX_SYMBOL _sinittext
++VMLINUX_SYMBOL _einittext
++VMLINUX_SYMBOL _stext
++VMLINUX_SYMBOL _text
++VMLINUX_SYMBOL text
++VMLINUX_SYMBOL __sched_text_start
++VMLINUX_SYMBOL __sched_text_end
++VMLINUX_SYMBOL __cpuidle_text_start
++VMLINUX_SYMBOL __cpuidle_text_end
++VMLINUX_SYMBOL _etext
+ 
+ # __DATA segment
+-VMLINUX_SYMBOL(_sdata) = . ;
+-VMLINUX_SYMBOL(__start_rodata) = . ; VMLINUX_SYMBOL(__end_rodata) = . ;
+-VMLINUX_SYMBOL(_edata) = . ;
++VMLINUX_SYMBOL _sdata
++VMLINUX_SYMBOL __start_rodata
++VMLINUX_SYMBOL __end_rodata
++VMLINUX_SYMBOL _edata
+ 
+-VMLINUX_SYMBOL(__start___ex_table) = . ; VMLINUX_SYMBOL(__stop___ex_table) = . ;
++VMLINUX_SYMBOL __start___ex_table
++VMLINUX_SYMBOL __stop___ex_table
+ 
+ INIT_SETUP
+ INIT_CALLS
+ CON_INITCALL
+ INIT_PARAMS
+ INIT_MODVER
+-VMLINUX_SYMBOL(__start_notes) = . ; VMLINUX_SYMBOL(__stop_notes) = . ;
+-VMLINUX_SYMBOL(__bss_start) = . ; VMLINUX_SYMBOL(__bss_stop) = . ;
+-VMLINUX_SYMBOL(_end) = . ;
++VMLINUX_SYMBOL __start_notes
++VMLINUX_SYMBOL __stop_notes
++VMLINUX_SYMBOL __bss_start
++VMLINUX_SYMBOL __bss_stop
++VMLINUX_SYMBOL _end
+diff --git a/linux/fs/Kconfig.binfmt b/linux/fs/Kconfig.binfmt
+index b795f8da81f3..73dfef092a91 100644
+--- a/linux/fs/Kconfig.binfmt
++++ b/linux/fs/Kconfig.binfmt
+@@ -38,7 +38,7 @@ config ARCH_BINFMT_ELF_STATE
+ config BINFMT_ELF_FDPIC
+ 	bool "Kernel support for FDPIC ELF binaries"
+ 	default y if !BINFMT_ELF
+-	depends on (ARM || (SUPERH32 && !MMU) || C6X)
++	depends on (ARM || (SUPERH32 && !MMU) || C6X || LKL)
+ 	select ELFCORE
+ 	help
+ 	  ELF FDPIC binaries are based on ELF, but allow the individual load
+diff --git a/linux/lib/string.c b/linux/lib/string.c
+index 2c0900a5d51a..178ae516d963 100644
+--- a/linux/lib/string.c
++++ b/linux/lib/string.c
+@@ -386,7 +386,12 @@ EXPORT_SYMBOL(strchr);
+  * Returns pointer to first occurrence of 'c' in s. If c is not found, then
+  * return a pointer to the null byte at the end of s.
+  */
++/* XXX: fix for wrong objcopy */
++#if defined(__APPLE__) && defined(__arm64__)
++char *NIU__strchrnul(const char *s, int c)
++#else
+ char *strchrnul(const char *s, int c)
++#endif
+ {
+ 	while (*s && *s != (char)c)
+ 		s++;
+diff --git a/linux/tools/lkl/lib/config.c b/linux/tools/lkl/lib/config.c
+index c5d25592f27b..4d1f1dee8378 100644
+--- a/linux/tools/lkl/lib/config.c
++++ b/linux/tools/lkl/lib/config.c
+@@ -13,6 +13,11 @@ char *strtok_r (char *__restrict, const char *__restrict, char **__restrict);
+ long strtol (const char *__restrict, char **__restrict, int);
+ unsigned long strtoul (const char *__restrict, char **__restrict, int);
+ 
++#ifdef __APPLE__
++int usleep(int microseconds);
++int inet_pton(int af, const char * restrict src, void * restrict dst);
++#endif
++
+ static int jsoneq(const char *json, jsmntok_t *tok, const char *s)
+ {
+ 	if (tok->type == JSMN_STRING &&
+diff --git a/linux/tools/lkl/lib/fs.c b/linux/tools/lkl/lib/fs.c
+index fe81850c8ab2..0821b9f20168 100644
+--- a/linux/tools/lkl/lib/fs.c
++++ b/linux/tools/lkl/lib/fs.c
+@@ -1,5 +1,6 @@
+ #include <stdarg.h>
+ #include <stdio.h>
++#include <stdlib.h>
+ #include <string.h>
+ #include <lkl_host.h>
+ #include "virtio.h"
+diff --git a/linux/tools/lkl/lib/rump-host.c b/linux/tools/lkl/lib/rump-host.c
+index 97ffe497c0a2..785acd7b8ba7 100644
+--- a/linux/tools/lkl/lib/rump-host.c
++++ b/linux/tools/lkl/lib/rump-host.c
+@@ -31,6 +31,11 @@
+ #include "jmp_buf.h"
+ #include "rump.h"
+ 
++#ifdef __APPLE__
++int sscanf(const char *restrict s, const char *restrict format, ...);
++int snprintf(char * restrict str, size_t size, const char * restrict format, ...);
++unsigned long strtoul(const char *restrict str, char **restrict endptr, int base);
++#endif
+ 
+ /* FIXME */
+ #define BIT(x) (1ULL << x)
+diff --git a/linux/tools/lkl/lib/utils.c b/linux/tools/lkl/lib/utils.c
+index 4077892ced0d..178b49b413d9 100644
+--- a/linux/tools/lkl/lib/utils.c
++++ b/linux/tools/lkl/lib/utils.c
+@@ -1,5 +1,6 @@
+ #include <stdarg.h>
+ #include <stdio.h>
++#include <stdlib.h>
+ #include <string.h>
+ #include <lkl_host.h>
+ 

@@ -5,7 +5,9 @@ LIBDIR=$(RUMPDIR)/lib
 BINDIR?=$(RUMPDIR)/bin
 REXEC=${BINDIR}/rexec
 INCDIR=$(RUMPDIR)/include
+ifneq ($(OS),darwin)
 LDFLAGS+=-static
+endif
 LDFLAGSXX+=
 CFLAGS+=
 

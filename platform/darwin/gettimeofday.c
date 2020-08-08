@@ -4,6 +4,7 @@
 
 #include "darwin.h"
 #include "syscall.h"
+#include "cpu_capabilities.h"
 
 
 /* XXX: picked from https://github.com/apple/darwin-xnu/blob/0a798f6738bc1db01281fc08ae024145e84df927/libsyscall/wrappers/__commpage_gettimeofday.c */
@@ -14,10 +15,6 @@ typedef	volatile struct	commpage_timeofday_data{
 	uint64_t	Ticks_scale;
 	uint64_t	Ticks_per_sec;
 } new_commpage_timeofday_data_t;
-
-#define _COMM_PAGE64_BASE_ADDRESS	( 0x00007fffffe00000 )   /* base address of allocated memory */
-#define _COMM_PAGE64_START_ADDRESS	( _COMM_PAGE64_BASE_ADDRESS )	/* address traditional commpage code starts on */
-#define _COMM_PAGE_NEWTIMEOFDAY_DATA	(_COMM_PAGE64_START_ADDRESS + 0x0D0)
 
 static __inline uint64_t
 multi_overflow(uint64_t a, uint64_t b)

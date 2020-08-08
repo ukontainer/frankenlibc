@@ -23,7 +23,10 @@ OBJ+=$(OBJDIR)/write.o $(OBJDIR)/writev.o
 OBJ+=$(OBJDIR)/_start1.o $(OBJDIR)/_exit.o
 OBJ+=$(OBJDIR)/sysctl.o
 OBJ+=$(OBJDIR)/sigaction.o $(OBJDIR)/sigprocmask.o
-OBJ+= $(OBJDIR)/_sigtramp.o $(OBJDIR)/sigreturn.o
+ifeq ($(shell arch),i386)
+OBJ+= $(OBJDIR)/_sigtramp.o
+endif
+OBJ+= $(OBJDIR)/sigreturn.o
 OBJ+=$(OBJDIR)/mach_absolute_time.o
 HEADERS=syscall.h i386/syscall.h x86_64/syscall.h darwin.h
 INCLUDES=-I../include -I../../franken/include -I../../franken/init -I../../franken/ucontext -I../../librumpuser -I../../franken/thread -I../../franken/ucontext/include
@@ -38,7 +41,7 @@ $(OBJDIR):
 $(CRTDIR):
 				mkdir -p $(CRTDIR)
 
-$(CRTDIR)/crt1.o:		crt1.S x86_64/crt1.S i386/crt1.S
+$(CRTDIR)/crt1.o:		crt1.S x86_64/crt1.S i386/crt1.S aarch64/crt1.S
 				$(COMPILE.S) -o $@ crt1.S
 				cp $@ $(CRTDIR)/crt0.o
 
@@ -85,7 +88,7 @@ $(OBJDIR)/lseek.o:		lseek.c $(HEADERS)
 				$(COMPILE.c) -o $@ lseek.c
 
 $(OBJDIR)/mach_absolute_time.o: mach_absolute_time.s
-				$(COMPILE.S) -march=native -o $@ $^
+				$(COMPILE.S) -o $@ $^
 
 $(OBJDIR)/memset_pattern.o:	memset_pattern.c $(HEADERS)
 				$(COMPILE.c) -o $@ memset_pattern.c
@@ -142,7 +145,7 @@ $(OBJDIR)/sigreturn.o:		sigreturn.c $(HEADERS)
 				$(COMPILE.c) -o $@ sigreturn.c
 
 $(OBJDIR)/_sigtramp.o:		_sigtramp.s
-				$(COMPILE.S) -march=native -o $@ $^
+				$(COMPILE.S) -o $@ $^
 
 $(OBJDIR)/write.o:		write.c $(HEADERS)
 				$(COMPILE.c) -o $@ write.c

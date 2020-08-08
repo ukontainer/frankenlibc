@@ -1,3 +1,8 @@
+#ifdef __APPLE__
+
+#include <darwin/aarch64/ucontext.h>
+
+#else
 struct __ucontext_stack_t {
     void *ss_sp;
     int ss_flags;
@@ -9,3 +14,4 @@ typedef struct ucontext_t {
     void *uc_link;
     struct __ucontext_stack_t uc_stack;
 } ucontext_t;
+#endif

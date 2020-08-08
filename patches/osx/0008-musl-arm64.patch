@@ -1,0 +1,193 @@
+Submodule musl contains untracked content
+Submodule musl contains modified content
+diff --git a/musl/arch/aarch64/bits/limits.h b/musl/arch/aarch64/bits/limits.h
+index 0226588c..86ef7663 100644
+--- a/musl/arch/aarch64/bits/limits.h
++++ b/musl/arch/aarch64/bits/limits.h
+@@ -1,5 +1,6 @@
+ #if defined(_POSIX_SOURCE) || defined(_POSIX_C_SOURCE) \
+  || defined(_XOPEN_SOURCE) || defined(_GNU_SOURCE) || defined(_BSD_SOURCE)
++#define PAGESIZE 4096
+ #define LONG_BIT 64
+ #endif
+ 
+diff --git a/musl/arch/aarch64/crt_arch.h b/musl/arch/aarch64/crt_arch.h
+index b64fb3dd..17219414 100644
+--- a/musl/arch/aarch64/crt_arch.h
++++ b/musl/arch/aarch64/crt_arch.h
+@@ -1,3 +1,4 @@
++#ifndef __APPLE__
+ __asm__(
+ ".text \n"
+ ".global " START "\n"
+@@ -13,3 +14,15 @@ START ":\n"
+ "	and sp, x0, #-16\n"
+ "	b " START "_c\n"
+ );
++#else
++__asm__(
++".text \n"
++".global " START "\n"
++START ":\n"
++"	mov x29, #0\n"
++"	mov x30, #0\n"
++"	mov x0, sp\n"
++"	and sp, x0, #-16\n"
++"	b " START "_c\n"
++);
++#endif
+diff --git a/musl/configure b/musl/configure
+index b25dad45..f8550045 100755
+--- a/musl/configure
++++ b/musl/configure
+@@ -315,6 +315,7 @@ printf "%s\n" "$target"
+ #
+ case "$target" in
+ # Catch these early to simplify matching for 32-bit archs
++arm64-apple-darwin*) ARCH=aarch64-darwin ;;
+ arm*) ARCH=arm ;;
+ aarch64*) ARCH=aarch64 ;;
+ i?86-nt32*) ARCH=nt32 ;;
+@@ -373,6 +374,12 @@ LKL_INCLUDE="$srcdir/arch/lkl/src/*.c"
+ 
+ if [[ "$target" = "x86_64-apple-darwin"* ]] ; then
+ LKL_INCLUDE="$LKL_INCLUDE $srcdir/src/setjmp/x86_64/*.s"
++LKL_EXCLUDE="$LKL_EXCLUDE $srcdir/src/setjmp/setjmp.c \
++ $srcdir/src/setjmp/longjmp.c"
++elif [[ "$target" = "arm64-apple-darwin"* ]] ; then
++LKL_INCLUDE="$LKL_INCLUDE $srcdir/src/setjmp/aarch64/*.s"
++LKL_EXCLUDE="$LKL_EXCLUDE $srcdir/src/setjmp/setjmp.c \
++ $srcdir/src/setjmp/longjmp.c"
+ fi
+ 
+ 
+@@ -392,7 +399,9 @@ tryflag CFLAGS_C99FSE -ffreestanding \
+ || tryflag CFLAGS_C99FSE -fno-builtin
+ tryflag CFLAGS_C99FSE -fexcess-precision=standard \
+ || { test "$ARCH" = i386 && tryflag CFLAGS_C99FSE -ffloat-store ; }
++if [[ "$target" != "arm64-apple-darwin"* ]] ; then
+ tryflag CFLAGS_C99FSE -frounding-math
++fi
+ 
+ #
+ # We may use the may_alias attribute if __GNUC__ is defined, so
+@@ -554,7 +563,9 @@ fi
+ #
+ tryflag CFLAGS_AUTO -Werror=implicit-function-declaration
+ tryflag CFLAGS_AUTO -Werror=implicit-int
++if [[ "$target" != "arm64-apple-darwin"* ]] ; then
+ tryflag CFLAGS_AUTO -Werror=pointer-sign
++fi
+ tryflag CFLAGS_AUTO -Werror=pointer-arith
+ 
+ #
+@@ -744,7 +755,7 @@ if $CC $CFLAGS_C99FSE \
+ printf "yes\n"
+ else
+ printf "no\n"
+-fail "$0: error: unsupported long double type"
++printf "$0: error: unsupported long double type"
+ fi
+ 
+ #
+diff --git a/musl/crt/aarch64-darwin/crti.s b/musl/crt/aarch64-darwin/crti.s
+new file mode 100644
+index 00000000..359fcd8a
+--- /dev/null
++++ b/musl/crt/aarch64-darwin/crti.s
+@@ -0,0 +1,11 @@
++.section __TEXT,.init
++.global _init
++_init:
++	stp x29,x30,[sp,-16]!
++	mov x29,sp
++
++.section __TEXT,.fini
++.global _fini
++_fini:
++	stp x29,x30,[sp,-16]!
++	mov x29,sp
+diff --git a/musl/crt/aarch64-darwin/crtn.s b/musl/crt/aarch64-darwin/crtn.s
+new file mode 100644
+index 00000000..22775d77
+--- /dev/null
++++ b/musl/crt/aarch64-darwin/crtn.s
+@@ -0,0 +1,7 @@
++.section __TEXT,.init
++	ldp x29,x30,[sp],#16
++	ret
++
++.section __TEXT,.fini
++	ldp x29,x30,[sp],#16
++	ret
+diff --git a/musl/src/setjmp/aarch64/longjmp.s b/musl/src/setjmp/aarch64/longjmp.s
+index 7c4655fa..47d4f453 100644
+--- a/musl/src/setjmp/aarch64/longjmp.s
++++ b/musl/src/setjmp/aarch64/longjmp.s
+@@ -1,7 +1,11 @@
+ .global _longjmp
++	.align        4;
+ .global longjmp
++	.align        4;
++#ifndef __APPLE__
+ .type _longjmp,%function
+ .type longjmp,%function
++#endif
+ _longjmp:
+ longjmp:
+ 	// IHI0055B_aapcs64.pdf 5.1.1, 5.1.2 callee saved registers
+diff --git a/musl/src/setjmp/aarch64/setjmp.s b/musl/src/setjmp/aarch64/setjmp.s
+index f49288aa..4d77491c 100644
+--- a/musl/src/setjmp/aarch64/setjmp.s
++++ b/musl/src/setjmp/aarch64/setjmp.s
+@@ -1,9 +1,14 @@
+ .global __setjmp
++	.align        4;
+ .global _setjmp
++	.align        4;
+ .global setjmp
++	.align        4;
++#ifndef __APPLE__
+ .type __setjmp,@function
+ .type _setjmp,@function
+ .type setjmp,@function
++#endif
+ __setjmp:
+ _setjmp:
+ setjmp:
+diff --git a/musl/src/thread/aarch64-darwin/syscall_cp.s b/musl/src/thread/aarch64-darwin/syscall_cp.s
+new file mode 100644
+index 00000000..83a87e0a
+--- /dev/null
++++ b/musl/src/thread/aarch64-darwin/syscall_cp.s
+@@ -0,0 +1,30 @@
++// __syscall_cp_asm(&self->cancel, nr, u, v, w, x, y, z)
++//                  x0             x1  x2 x3 x4 x5 x6 x7
++
++// syscall(nr, u, v, w, x, y, z)
++//         x8  x0 x1 x2 x3 x4 x5
++
++.global ___cp_begin
++	.align 4
++.global ___cp_end
++	.align 4
++.global ___cp_cancel
++	.align 4
++.global ___syscall_cp_asm
++	.align 4
++___syscall_cp_asm:
++___cp_begin:
++	ldr w0,[x0]
++	cbnz w0,___cp_cancel
++	mov x8,x1
++	mov x0,x2
++	mov x1,x3
++	mov x2,x4
++	mov x3,x5
++	mov x4,x6
++	mov x5,x7
++	svc 0
++___cp_end:
++	ret
++___cp_cancel:
++	b ___cancel

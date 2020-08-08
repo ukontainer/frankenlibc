@@ -7,3 +7,6 @@
 [submodule "llvm"]
 	path = llvm
 	url = git://github.com/llvm/llvm-project.git
+[submodule "franken/ucontext/darwin/aarch64/libucontext-ios-arm64"]
+	path = franken/ucontext/darwin/aarch64/libucontext-ios-arm64
+	url = https://github.com/MCApollo/libucontext-ios-arm64
