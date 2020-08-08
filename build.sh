@@ -59,6 +59,7 @@ case ${TARGET} in
 	OS=darwin
 	prefix="_"
 	EXTRA_CFLAGS="-mmacosx-version-min=10.7.0 -Wno-unsupported-visibility"
+	export HOST_CFLAGS="-Wno-error-implicit-function-declaration"
 	EXTRA_AFLAGS="-mmacosx-version-min=10.7.0"
 	;;
 *)

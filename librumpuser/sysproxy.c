@@ -86,6 +86,11 @@ typedef intptr_t register_t;
 #endif
 #include <rump/rumpuser.h>
 
+#ifdef __APPLE__
+int usleep(int microseconds);
+char *strdup(const char *s1);
+#endif
+
 extern struct rumpuser_hyperup rumpuser__hyp;
 
 static inline void
