@@ -606,9 +606,18 @@ then
 	else
 		# sysroot does not work with linker eg NetBSD
 		appendvar COMPILER_FLAGS "-I${OUTDIR}/include -L${OUTDIR}/lib -lcrt1.o -B${OUTDIR}/lib"
-		appendvar COMPILER_FLAGS "-nostdinc -lc -nostdlib -static" # -lSystem -nodefaultlibs"
-		printf "#!/bin/sh\n\nexec ${CC-cc} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
-		printf "#!/bin/sh\n\nexec ${CC-c++} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang++
+		appendvar COMPILER_FLAGS "-nostdinc -lc -nostdlib"
+		# macOS can't build with -static on arm64
+		if [ ${OS} = "darwin" ] ; then
+		    if [ `arch` = "i386" ] ; then
+			appendvar COMPILER_FLAGS "-static"
+		    elif [ `arch` = "arm64" ] ; then
+			appendvar COMPILER_FLAGS "-Wl,-e,_start -framework System"
+		    fi
+		fi
+
+		printf "#!/bin/sh\n\n${CLANG_PRINT_SYSROOT} \n\nexec ${CC-cc} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang
+		printf "#!/bin/sh\n\n${CLANG_PRINT_SYSROOT} \n\nexec ${CC-c++} ${COMPILER_CXX_FLAGS} ${COMPILER_FLAGS} \"\$@\"\n" > ${BINDIR}/${TOOL_PREFIX}-clang++
 	fi
 	COMPILER="${TOOL_PREFIX}-clang"
 	( cd ${BINDIR}

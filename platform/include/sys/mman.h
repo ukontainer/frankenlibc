@@ -22,6 +22,7 @@
 #else
 #define MAP_STACK	0
 #endif
+#define MAP_JIT          0x0800 /* Allocate a region that will be used for JIT purposes */
 
 #define MAP_ALIGNED(n)		((n) << MAP_ALIGNMENT_SHIFT)
 #define MAP_ALIGNMENT_SHIFT	24

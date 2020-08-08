@@ -175,3 +175,5 @@ struct	ifreq {
 #define	DIOCGMEDIASIZE	_IOR('d', 129, off_t)
 #define FIOASYNC	_IOW('f', 125, int)
 
+/* for MAP_JIT */
+void pthread_jit_write_protect_np(int);

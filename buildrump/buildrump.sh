@@ -1161,6 +1161,9 @@ evalmachine ()
 		MACHINE_GNU_ARCH="i486"
 		TOOLABI="elf"
 		;;
+	arm64*)
+		probeaarch64
+		;;
 	arm*)
 		probearm
 		;;

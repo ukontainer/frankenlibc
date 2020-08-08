@@ -11,7 +11,11 @@ CFLAGS+=-fno-stack-protector
 
 default:			$(OBJ)
 ifeq ($(OS),darwin)
-	$(MAKE) -C x86_64/darwin
+ifeq ($(shell arch),arm64)
+	$(MAKE) -C darwin/aarch64
+else
+	$(MAKE) -C darwin/x86_64
+endif
 endif
 
 $(OBJDIR)/getcontext.o:		getcontext.c

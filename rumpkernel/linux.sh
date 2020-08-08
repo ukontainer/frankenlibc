@@ -164,7 +164,7 @@ rumpkernel_build_test()
 	if [ ${OS} != "qemu-arm" ] ;
 	then
 		${MAKE} -C tests/iputils clean
-		CC="${BINDIR}/${COMPILER}" LDFLAGS="-static" ${MAKE} -C tests/iputils ping ping6
+		CC="${BINDIR}/${COMPILER}" ${MAKE} -C tests/iputils ping ping6
 		cp tests/iputils/ping tests/iputils/ping6 ${OBJDIR}/
 		${MAKE} -C tests/iputils clean
 	fi

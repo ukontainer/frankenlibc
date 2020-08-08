@@ -27,7 +27,7 @@
  */
 
 #include <sys/appleapiopts.h>
-//#include <machine/cpu_capabilities.h>
+#include "cpu_capabilities.h"
 
 #if defined(__i386__)
 
@@ -98,11 +98,6 @@ _mach_absolute_time:
 
 #elif defined(__x86_64__)
 
-#define _COMM_PAGE64_BASE_ADDRESS	( 0x00007fffffe00000 )   /* base address of allocated memory */
-#define _COMM_PAGE64_START_ADDRESS	( _COMM_PAGE64_BASE_ADDRESS )	/* address traditional commpage code starts on */
-#define _COMM_PAGE_TIME_DATA_START	(_COMM_PAGE_START_ADDRESS+0x050)	/* base of offsets below (_NT_SCALE etc) */
-#define _COMM_PAGE_NEWTIMEOFDAY_DATA	(_COMM_PAGE64_START_ADDRESS + 0x0D0)
-
 #define	_NT_TSC_BASE			0
 #define	_NT_SCALE			8
 #define	_NT_SHIFT			12
@@ -131,7 +126,7 @@ _mach_absolute_time:
 _mach_absolute_time:
 	pushq	%rbp				// set up a frame for backtraces
 	movq	%rsp,%rbp
-	movq	$(0x00007fffffe00050),%rsi
+	movq	$(_COMM_PAGE_TIME_DATA_START),%rsi
 1:
 	movl	_NT_GENERATION(%rsi),%r8d	// get generation
 	testl	%r8d,%r8d			// if 0, data is being changed...
@@ -244,16 +239,13 @@ _mach_continuous_time_kernel:
  * read the register.  If the offset changes, we have gone to sleep in the midst of
  * doing a read.  This case should be exceedingly rare, but could result in a terribly
  * inaccurate result, so we need to get a fresh timebase value.
- *
- * Note that the commpage address construction expects our top 2 bytes to be 0xFFFF.
- * If this changes (i.e, we significantly relocate the commpage), this logic will need
- * to change as well (use 4 movk instructions rather than cheating with the movn).
  */
 	.text
 	.align 2
 	.globl _mach_absolute_time
 _mach_absolute_time:
-	movn	x3, #(~((_COMM_PAGE_TIMEBASE_OFFSET) >> 32) & 0x000000000000FFFF), lsl #32
+	movk	x3, #(((_COMM_PAGE_TIMEBASE_OFFSET) >> 48) & 0x000000000000FFFF), lsl #48
+	movk	x3, #(((_COMM_PAGE_TIMEBASE_OFFSET) >> 32) & 0x000000000000FFFF), lsl #32
 	movk	x3, #(((_COMM_PAGE_TIMEBASE_OFFSET) >> 16) & 0x000000000000FFFF), lsl #16
 	movk	x3, #((_COMM_PAGE_TIMEBASE_OFFSET) & 0x000000000000FFFF)
 	ldrb	w2, [x3, #((_COMM_PAGE_USER_TIMEBASE) - (_COMM_PAGE_TIMEBASE_OFFSET))]
