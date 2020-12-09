@@ -1,0 +1,87 @@
+Submodule linux contains untracked content
+Submodule linux contains modified content
+diff --git a/linux/arch/lkl/Makefile b/linux/arch/lkl/Makefile
+index 41c61ca6d9a2..c33641d54a04 100644
+--- a/linux/arch/lkl/Makefile
++++ b/linux/arch/lkl/Makefile
+@@ -48,7 +48,8 @@ KBUILD_CFLAGS += -I$(RUMP_INCLUDE) -DRUMPUSER -DLIBRUMPUSER -D_KERNEL
+ 
+ # objcopy trick is taken from rumpkernel
+ GCCSYMBOLS=__umoddi3|__udivdi3|__aeabi_idiv|__aeabi_idivmod|__aeabi_llsl
+-GCCSYMBOLS:=$(GCCSYMBOLS)|__aeabi_llsr|__aeabi_uidiv|__aeabi_uidivmod|__aeabi_uldivmod
++GCCSYMBOLS:=$(GCCSYMBOLS)|__aeabi_llsr|__aeabi_lasr
++GCCSYMBOLS:=$(GCCSYMBOLS)|__aeabi_uidiv|__aeabi_uidivmod|__aeabi_uldivmod
+ GCCATOMIC=__sync_synchronize|__sync_fetch_and_sub_4|__sync_fetch_and_add_4
+ GCCATOMIC:=$(GCCATOMIC)|__sync_fetch_and_and_4|__sync_fetch_and_or_4
+ VMLINUX_SYMS=__start___ex_table|__stop___ex_table|boot_cmdline
+diff --git a/linux/arch/lkl/configs/tiny.config b/linux/arch/lkl/configs/tiny.config
+new file mode 100644
+index 000000000000..59a823fe2dd2
+--- /dev/null
++++ b/linux/arch/lkl/configs/tiny.config
+@@ -0,0 +1,33 @@
++CONFIG_NO_HZ_IDLE=y
++# CONFIG_BUG is not set
++# CONFIG_PRINTK is not set
++CONFIG_EPOLL=y
++CONFIG_EVENTFD=y
++CONFIG_BLOCK=y
++# CONFIG_NET is not set
++# CONFIG_INET is not set
++CONFIG_VIRTIO=y
++CONFIG_VIRTIO_BLK=y
++# CONFIG_NETDEVICES is not set
++# CONFIG_VIRTIO_NET is not set
++CONFIG_VIRTIO_MENU=y
++CONFIG_VIRTIO_MMIO=y
++CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES=y
++CONFIG_PROC_FS=y
++CONFIG_PROC_SYSCTL=y
++CONFIG_KERNFS=y
++CONFIG_SYSFS=y
++CONFIG_MISC_FILESYSTEMS=y
++CONFIG_EXT4_FS=y
++CONFIG_EXT4_FS_POSIX_ACL=y
++CONFIG_EXT4_FS_SECURITY=y
++CONFIG_ISO9660_FS=y
++# CONFIG_PRINTK_TIME is not set
++# CONFIG_DEBUG_INFO is not set
++# CONFIG_DEBUG_INFO_REDUCED is not set
++CONFIG_PCI=y
++# CONFIG_NET_CORE is not set
++CONFIG_VIRTIO_PCI=y
++CONFIG_GENERIC_IOMAP=y
++CONFIG_NETWORK_FILESYSTEMS=y
++CONFIG_NET_9P=y
+diff --git a/linux/arch/lkl/kernel/misc.c b/linux/arch/lkl/kernel/misc.c
+index b9abc26879d5..687bdb50a5ee 100644
+--- a/linux/arch/lkl/kernel/misc.c
++++ b/linux/arch/lkl/kernel/misc.c
+@@ -5,6 +5,7 @@
+ #include <asm/ptrace.h>
+ #include <asm/host_ops.h>
+ 
++#ifdef CONFIG_PRINTK
+ void dump_stack(void)
+ {
+ 	unsigned long dummy;
+@@ -22,6 +23,7 @@ void dump_stack(void)
+ 	}
+ 	pr_info("\n");
+ }
++#endif
+ 
+ void show_regs(struct pt_regs *regs)
+ {
+diff --git a/linux/tools/lkl/Makefile b/linux/tools/lkl/Makefile
+index 5e3c362b488c..6254003aba76 100644
+--- a/linux/tools/lkl/Makefile
++++ b/linux/tools/lkl/Makefile
+@@ -75,6 +75,7 @@ $(OUTPUT)lib/lkl.o: bin/stat
+ 	$(Q)$(MAKE) -C ../.. ARCH=lkl $(KOPT) $(KCONFIG)
+ # this workaround is for arm32 linker (ld.gold)
+ 	$(Q)export PATH=$(srctree)/tools/lkl/bin/:${PATH} ;\
++	$(MAKE) -C ../.. ARCH=lkl $(KOPT) ;\
+ 	$(MAKE) -C ../.. ARCH=lkl $(KOPT) install INSTALL_PATH=$(OUTPUT)
+ 
+ # rules to link libs

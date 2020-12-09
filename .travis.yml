@@ -38,6 +38,7 @@ jobs:
         - pip install --user yamlish junit_xml
         - ln -sf /usr/local/bin/gsed ~/.local/bin/sed
         - ln -sf /usr/local/bin/gdate ~/.local/bin/date
+        - ln -sf /usr/local/bin/gcp ~/.local/bin/cp
         - ln -sf /usr/local/opt/e2fsprogs/sbin/mkfs.ext4 ~/.local/bin/
         - ln -sf /usr/local/opt/binutils/bin/objcopy ~/.local/bin/objcopy
     - stage: test
@@ -55,6 +56,7 @@ jobs:
         - pip install --user yamlish junit_xml
         - ln -sf /usr/local/bin/gsed ~/.local/bin/sed
         - ln -sf /usr/local/bin/gdate ~/.local/bin/date
+        - ln -sf /usr/local/bin/gcp ~/.local/bin/cp
         - ln -sf /usr/local/opt/e2fsprogs/sbin/mkfs.ext4 ~/.local/bin/
         - ln -sf /usr/local/opt/binutils/bin/objcopy ~/.local/bin/objcopy
     - stage: test
@@ -81,7 +83,7 @@ jobs:
         - sudo apt-get install bc
     - stage: downstream
       before_script:
-      script: bash -e ./.travis-trigger.sh ukontainer/rumprun-packages lkl-musl
+      script: bash -e ./.travis-trigger.sh ukontainer/rumprun-packages tinyconfig #XXX: revert
       os: linux
       if: branch = lkl-musl-macho
 
@@ -95,5 +97,15 @@ script:
   - travis_fold start "build.sh"
   - ./build.sh -d /opt/rump -q -k linux notest
   - travis_fold end "build.sh"
+  - travis_fold start "tests"
   - RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run
-  - if [ $TRAVIS_REPO_SLUG == "ukontainer/frankenlibc" ] ; then bash -e ./.travis-deploy.sh $DEPLOY ; fi
+  - travis_fold end "tests"
+  - if [ "$TRAVIS_REPO_SLUG" == "ukontainer/frankenlibc" ] ; then bash -e ./.travis-deploy.sh $DEPLOY ; fi
+  - travis_fold start "build.sh_tiny"
+  - KCONFIG=tinyconfig ./build.sh -d /opt/rump-tiny -o rumpobj-tiny -q -k linux notest
+  - travis_fold end "build.sh_tiny"
+  - travis_fold start "tests_tiny"
+  - RUMPDIR=/opt/rump-tiny RUMPOBJ=`pwd`/rumpobj-tiny make -C tests run
+  - travis_fold end "tests_tiny"
+  - echo $TRAVIS_REPO_SLUG
+  - if [ "$TRAVIS_REPO_SLUG" == "ukontainer/frankenlibc" ] ; then DESTDIR=/opt/rump-tiny bash -e ./.travis-deploy.sh $DEPLOY ; fi

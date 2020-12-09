@@ -1,6 +1,7 @@
 #!/bin/bash
 
-DESTDIR="/opt/rump"
+DESTDIR=${DESTDIR:-/opt/rump}
+RUMPOBJ=${RUMPOBJ:-rumpobj}
 PUB_FILENAME=frankenlibc.tar.gz
 
 if [ x$DEPLOY = "xskip" ] ; then
@@ -8,8 +9,9 @@ if [ x$DEPLOY = "xskip" ] ; then
 fi
 
 # skip deploy if it's not upstream repo and branch
+# XXX: revert
 if [ $TRAVIS_REPO_SLUG != "ukontainer/frankenlibc" ] ||
-   [ $TRAVIS_BRANCH != "lkl-musl-macho" ] ; then
+   [ $TRAVIS_BRANCH != "tinyconfig" ] ; then
     exit
 fi
 
@@ -17,10 +19,14 @@ if [ $CC = "gcc" ] && [ $TRAVIS_ARCH = "amd64" ] ; then
     PUB_FILENAME=frankenlibc-gcc.tar.gz
 fi
 
-cp rumpobj/tests/ping $DESTDIR/bin
-cp rumpobj/tests/ping6 $DESTDIR/bin
-cp rumpobj/tests/hello $DESTDIR/bin
-cp rumpobj/tests/lkick $DESTDIR/bin
+if [ $DESTDIR = "/opt/rump-tiny" ] ; then
+    PUB_FILENAME=frankenlibc-tiny.tar.gz
+fi
+
+cp $RUMPOBJ/tests/ping $DESTDIR/bin
+cp $RUMPOBJ/tests/ping6 $DESTDIR/bin
+cp $RUMPOBJ/tests/hello $DESTDIR/bin
+cp $RUMPOBJ/tests/lkick $DESTDIR/bin
 
 
 # deploy to bintray

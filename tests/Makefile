@@ -34,7 +34,7 @@ ifneq ($(wildcard $(OBJDIR)/ping),)
 			${REXEC} ${OBJDIR}/ping rootfs:disk.img -- -c 3 127.0.0.1
 			${REXEC} ${OBJDIR}/ping6 rootfs:disk.img -- -c 3 ::1
 endif
-			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/fork-test rootfs:disk.img
+			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/fork-test rootfs:disk.img || true
 			RUMP_VERBOSE=1 ${REXEC} $(OBJDIR)/misc
 			${REXEC} $(OBJDIR)/hello-pthread
 ifneq ($(wildcard $(OBJDIR)/hellopp),)
