@@ -95,14 +95,14 @@ script:
   - for file in `find patches/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
   - for file in `find patches/$TRAVIS_OS_NAME/ -maxdepth 1 -type f` ; do patch -p1 < $file ; done
   - travis_fold start "build.sh"
-  - ./build.sh -d /opt/rump -q -k linux notest
+  - ./build.sh -j2 -d /opt/rump -q -k linux notest
   - travis_fold end "build.sh"
   - travis_fold start "tests"
   - RUMPDIR=/opt/rump RUMPOBJ=`pwd`/rumpobj make -C tests run
   - travis_fold end "tests"
   - if [ "$TRAVIS_REPO_SLUG" == "ukontainer/frankenlibc" ] ; then bash -e ./.travis-deploy.sh $DEPLOY ; fi
   - travis_fold start "build.sh_tiny"
-  - KCONFIG=tinyconfig ./build.sh -d /opt/rump-tiny -o rumpobj-tiny -q -k linux notest
+  - KCONFIG=tinyconfig ./build.sh -j2 -d /opt/rump-tiny -o rumpobj-tiny -q -k linux notest
   - travis_fold end "build.sh_tiny"
   - travis_fold start "tests_tiny"
   - RUMPDIR=/opt/rump-tiny RUMPOBJ=`pwd`/rumpobj-tiny make -C tests run
