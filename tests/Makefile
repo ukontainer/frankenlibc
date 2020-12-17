@@ -9,7 +9,7 @@ ifneq ($(OS),darwin)
 LDFLAGS+=-static
 endif
 LDFLAGSXX+=
-CFLAGS+=
+CFLAGS+=-ggdb3
 
 DEPS=$(LIBDIR)/libc.a
 
