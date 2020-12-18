@@ -1,0 +1,460 @@
+Submodule linux contains untracked content
+Submodule linux 7586f78c..52c5a6dd:
+diff --git a/linux/arch/lkl/Makefile b/linux/arch/lkl/Makefile
+index c33641d54a04..d81cf71b86c9 100644
+--- a/linux/arch/lkl/Makefile
++++ b/linux/arch/lkl/Makefile
+@@ -22,7 +22,7 @@ $(error Unrecognized platform: $(OUTPUT_FORMAT))
+ endif
+ 
+ ifeq ($(OUTPUT_FORMAT),elf32-littlearm)
+-CFLAGS_ABI      :=-mabi=aapcs-linux -mno-thumb-interwork -mfpu=vfp
++CFLAGS_ABI      :=-mabi=aapcs-linux -mno-thumb-interwork -marm -mfpu=vfp
+ KBUILD_CFLAGS += $(CFLAGS_ABI)
+ endif
+ 
+diff --git a/linux/arch/lkl/include/asm/elf.h b/linux/arch/lkl/include/asm/elf.h
+index b72ce226424b..f11bb31aaacd 100644
+--- a/linux/arch/lkl/include/asm/elf.h
++++ b/linux/arch/lkl/include/asm/elf.h
+@@ -3,8 +3,15 @@
+ 
+ #include <asm/auxvec.h>
+ 
++#ifdef __x86_64__
+ #define elf_check_arch(x) \
+ 	((x)->e_machine == EM_X86_64)
++#define ELF_PLATFORM "x86_64"
++#else
++#define elf_check_arch(x) \
++	((x)->e_machine == EM_AARCH64)
++#define ELF_PLATFORM "v7l"
++#endif
+ 
+ /* XXX: should check e_flags */
+ //#define elf_check_fdpic(x) 1
+@@ -19,7 +26,6 @@
+ 
+ #define ELF_EXEC_PAGESIZE	PAGE_SIZE
+ /* XXX */
+-#define ELF_PLATFORM "x86_64"
+ #define ELF_HWCAP	0
+ #define ELF_ET_DYN_BASE 0
+ 
+diff --git a/linux/arch/lkl/include/asm/processor.h b/linux/arch/lkl/include/asm/processor.h
+index 9a70cc72d6c5..00a4f09b43f0 100644
+--- a/linux/arch/lkl/include/asm/processor.h
++++ b/linux/arch/lkl/include/asm/processor.h
+@@ -49,6 +49,10 @@ static inline void start_thread(struct pt_regs *regs, unsigned long pc,
+ 	asm("mov %0, %%rsp" :: "m"(sp));
+ 	asm("mov %0, %%rax" :: "m"(pc));
+ 	asm("jmp *%rax");
++#else
++	asm("mov sp, %0" :: "r"(sp));
++	asm("mov x0, %0" :: "r"(pc));
++	asm("br  x0");
+ #endif
+ }
+ 
+diff --git a/linux/arch/lkl/include/asm/sched.h b/linux/arch/lkl/include/asm/sched.h
+index 9fe6413b4e2e..efccb4842256 100644
+--- a/linux/arch/lkl/include/asm/sched.h
++++ b/linux/arch/lkl/include/asm/sched.h
+@@ -12,7 +12,7 @@ static inline void thread_sched_jb(void)
+ 		lkl_ops->jmp_buf_set(&current_thread_info()->sched_jb,
+ 				     schedule);
+ 	} else {
+-		lkl_bug("thread_sched_jb() can be used only for host task");
++		lkl_bug("thread_sched_jb() can be used only for host task\n");
+ 	}
+ }
+ 
+diff --git a/linux/arch/lkl/include/asm/thread_info.h b/linux/arch/lkl/include/asm/thread_info.h
+index c2488171e83b..e75c925f22e5 100644
+--- a/linux/arch/lkl/include/asm/thread_info.h
++++ b/linux/arch/lkl/include/asm/thread_info.h
+@@ -17,6 +17,7 @@ struct rump_sysproxy_info {
+ 	void *client;		/* client handle */
+ 	bool remote;		/* is remote syscall */
+ 	int count;		/* reentrancy count */
++	int execve;
+ };
+ 
+ struct thread_info {
+diff --git a/linux/arch/lkl/include/uapi/asm/sigcontext.h b/linux/arch/lkl/include/uapi/asm/sigcontext.h
+index a3c2a1b73084..da62413efff6 100644
+--- a/linux/arch/lkl/include/uapi/asm/sigcontext.h
++++ b/linux/arch/lkl/include/uapi/asm/sigcontext.h
+@@ -9,6 +9,7 @@ struct lkl_pt_regs {
+  * C ABI says these regs are callee-preserved. They aren't saved on kernel entry
+  * unless syscall needs a complete, fully filled "struct pt_regs".
+  */
++#ifdef __x86_64__
+ 	unsigned long r15;
+ 	unsigned long r14;
+ 	unsigned long r13;
+@@ -37,6 +38,22 @@ struct lkl_pt_regs {
+ 	unsigned long sp;
+ 	unsigned long ss;
+ /* top of stack page */
++#else
++	unsigned long x19;
++	unsigned long x20;
++	unsigned long x21;
++	unsigned long x22;
++	unsigned long x23;
++	unsigned long x24;
++	unsigned long x25;
++	unsigned long x26;
++	unsigned long x27;
++	unsigned long x28;
++	unsigned long fp; //x29
++	unsigned long lr; //x30
++	unsigned long sp;
++	unsigned long pc;
++#endif
+ };
+ 
+ struct pt_regs {
+diff --git a/linux/arch/lkl/kernel/syscalls.c b/linux/arch/lkl/kernel/syscalls.c
+index 2940c5a440f4..96ac47831e95 100644
+--- a/linux/arch/lkl/kernel/syscalls.c
++++ b/linux/arch/lkl/kernel/syscalls.c
+@@ -102,7 +102,11 @@ static void del_host_task(void *arg)
+ 
+ static struct lkl_tls_key *task_key;
+ 
++#ifdef __x86_64
+ int inline lkl_save_register(struct task_struct *task)
++#else
++int lkl_save_register(struct task_struct *task)
++#endif
+ {
+ #ifdef __x86_64
+ 	/* XXX: proper way ? */
+@@ -125,7 +129,27 @@ int inline lkl_save_register(struct task_struct *task)
+ 
+ 	return 0;
+ #else
+-	return -ENOSYS;
++	task_pt_regs(task)->regs.sp =
++		(unsigned long)(__builtin_frame_address(0) + 16);
++	task_pt_regs(task)->regs.fp =
++		(unsigned long)__builtin_frame_address(1);
++	task_pt_regs(task)->regs.pc =
++		(unsigned long)__builtin_return_address(0);
++#define SAVE_REG(r)						\
++	asm("str "#r", %0" :: "m"(task_pt_regs(task)->regs.r))
++
++	SAVE_REG(x19);
++	SAVE_REG(x20);
++	SAVE_REG(x21);
++	SAVE_REG(x22);
++	SAVE_REG(x23);
++	SAVE_REG(x24);
++	SAVE_REG(x25);
++	SAVE_REG(x26);
++	SAVE_REG(x27);
++	SAVE_REG(x28);
++	SAVE_REG(lr);
++	return 0;
+ #endif /* __x86_64 */
+ }
+ 
+@@ -147,6 +171,8 @@ long lkl_syscall(long no, long *params)
+ 	struct task_struct *task = host0;
+ 	long ret;
+ 
++	lkl_printf("lkl_parent_syscall = 0x%x, no=%d\n", lkl_parent_syscall, no);
++
+ 	/* use parent proc's lkl_syscall instead */
+ 	if (lkl_parent_syscall)
+ 		return lkl_parent_syscall(no, params);
+@@ -171,25 +197,51 @@ long lkl_syscall(long no, long *params)
+ 	switch_to_host_task(task);
+ 
+ 	/* rentrant syscall */
+-	if (task_thread_info(task)->rump.count)
++	if (task_thread_info(task)->rump.count) {
+ 		lkl_cpu_put();
++		if (task_thread_info(task)->rump.execve) {
++			task_thread_info(task)->rump.execve = 0;
++			task_thread_info(task)->rump.count--;
++		}
++	}
+ 
+ 	task_thread_info(task)->rump.count++;
+ 
+ 	if (no == __NR_vfork) {
+-		ret = lkl_save_register(task);
++		struct task_struct *task2;
++
++		new_host_task(&task2);
++		switch_to_host_task(task2);
++		ret = lkl_save_register(task2);
++		if (ret > 0)
++			return 0;
+ 		if (ret < 0)
+ 			return ret;
+ 	}
+ 
+ #ifdef RUMPUSER
+ 	void rump_platform_exit(void);
+-	if (no == __NR_exit || no == __NR_exit_group)
+-		rump_platform_exit();
++	if (no == __NR_exit || no == __NR_exit_group) {
++		if (task_tgid_vnr(get_current()) == 1) {
++			rump_platform_exit();
++		} else {
++			struct thread_info *ti;
++			/* mark forked task as dead */
++			ti = current_thread_info();
++			ti->dead = true;
++			lkl_ops->tls_set(task_key, NULL);
++		}
++	}
+ #endif
+ 
++	if (no == __NR_execve)
++		task_thread_info(task)->rump.execve = 1;
++
+ 	ret = run_syscall(no, params);
+ 
++	if (no == __NR_execve)
++		task_thread_info(task)->rump.execve = 0;
++
+ 	/* rentrant syscall */
+ 	if (task_thread_info(task)->rump.count >= 2)
+ 		lkl_cpu_get();
+@@ -394,3 +446,8 @@ SYSCALL_DEFINE3(virtio_mmio_device_add, long, base, long, size, unsigned int,
+ 
+ 	return ret;
+ }
++
++unsigned long wrong_size_cmpxchg(volatile void *ptr)
++{
++}
++
+diff --git a/linux/arch/lkl/kernel/threads.c b/linux/arch/lkl/kernel/threads.c
+index 7688e62e7b24..8cce7cc268d0 100644
+--- a/linux/arch/lkl/kernel/threads.c
++++ b/linux/arch/lkl/kernel/threads.c
+@@ -18,7 +18,9 @@ static int init_ti(struct thread_info *ti)
+ 	ti->prev_sched = NULL;
+ 	ti->tid = 0;
+ 	ti->rump.client = NULL;
++	ti->rump.count = 0;
+ 	ti->rump.remote = false;
++	ti->rump.execve = 0;
+ 
+ 	return 0;
+ }
+@@ -114,7 +116,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
+ 	if (test_bit(TIF_SCHED_JB, &_prev_flags)) {
+ 		lkl_ops->jmp_buf_longjmp(&_prev_jb, 1);
+ 	} else {
+-		lkl_ops->sem_down(_prev->sched_sem);
++		if (!_prev->dead)
++			lkl_ops->sem_down(_prev->sched_sem);
+ 	}
+ 
+ 	if (_prev->dead)
+@@ -150,6 +153,31 @@ struct thread_bootstrap_arg {
+ 	void *arg;
+ };
+ 
++#ifndef __x86_64
++static void restore_register_sub(struct task_struct *task, unsigned long newsp,
++				 unsigned long newfp)
++{
++#define RESTORE_REG(r)				\
++	asm("ldr "#r", %0" :: "m"(task_pt_regs(task)->regs.r))
++
++	RESTORE_REG(lr);
++	RESTORE_REG(x28);
++	RESTORE_REG(x27);
++	RESTORE_REG(x26);
++	RESTORE_REG(x25);
++	RESTORE_REG(x24);
++	RESTORE_REG(x23);
++	RESTORE_REG(x22);
++	RESTORE_REG(x21);
++	RESTORE_REG(x20);
++	RESTORE_REG(x19);
++	asm("mov sp, %0" :: "r"(newsp));
++	asm("mov fp, %0" :: "r"(newfp));
++	asm("mov w0, #1");
++	asm("ret");
++}
++#endif
++
+ void inline lkl_restore_register(struct task_struct *task)
+ {
+ #ifdef __x86_64
+@@ -165,6 +193,7 @@ void inline lkl_restore_register(struct task_struct *task)
+ 	stack_size = stack_size > FORK_STACK_SIZE ? FORK_STACK_SIZE : stack_size;
+ 	pr_info("regs.sp=%lx, ssize=%lu", task_pt_regs(task)->regs.sp, stack_size);
+ 	newrsp = kmalloc(stack_size, GFP_KERNEL);
++	pr_info("newsp=%lx\n", (unsigned long)newrsp);
+ 	memcpy(newrsp, (void *)task_pt_regs(task)->regs.sp, stack_size);
+ 	asm("mov %0, %%rsp" :: "m"(newrsp));
+ 
+@@ -185,6 +214,22 @@ void inline lkl_restore_register(struct task_struct *task)
+ 	/* case for (v)fork: child should return 0 */
+ 	asm("mov $0, %rax");
+ 	asm("jmp *%r10");
++#else
++	void *newsp;
++	unsigned long newfp;
++	unsigned long stack_size;
++#define FORK_STACK_SIZE 1200
++	stack_size = STACK_TOP - 8 - task_pt_regs(task)->regs.sp;
++	stack_size = stack_size > FORK_STACK_SIZE ? FORK_STACK_SIZE
++		: stack_size;
++	pr_info("regs.sp=%lx, ssize=%lu\n", task_pt_regs(task)->regs.sp,
++		stack_size);
++	newsp = kmalloc(stack_size, GFP_KERNEL);
++	pr_info("newsp=%lx\n", (unsigned long)newsp);
++	memcpy(newsp, (void *)task_pt_regs(task)->regs.sp, stack_size);
++	newfp = (unsigned long)newsp
++		+ (task_pt_regs(task)->regs.fp - task_pt_regs(task)->regs.sp);
++	restore_register_sub(task, (unsigned long)newsp, newfp);
+ #endif /* __x86_64 */
+ }
+ 
+diff --git a/linux/fs/Makefile b/linux/fs/Makefile
+index 293733f61594..1a893b065d35 100644
+--- a/linux/fs/Makefile
++++ b/linux/fs/Makefile
+@@ -128,3 +128,7 @@ obj-y				+= exofs/ # Multiple modules
+ obj-$(CONFIG_CEPH_FS)		+= ceph/
+ obj-$(CONFIG_PSTORE)		+= pstore/
+ obj-$(CONFIG_EFIVAR_FS)		+= efivarfs/
++
++CFLAGS_binfmt_elf_fdpic.o=-g -O0
++CFLAGS_exec.o=-g -O0
++CFLAGS_fork.o=-g -O0
+diff --git a/linux/fs/binfmt_elf_fdpic.c b/linux/fs/binfmt_elf_fdpic.c
+index 367c4ffdd440..0668f3e79967 100644
+--- a/linux/fs/binfmt_elf_fdpic.c
++++ b/linux/fs/binfmt_elf_fdpic.c
+@@ -48,7 +48,8 @@
+ typedef char *elf_caddr_t;
+ 
+ #if 1
+-#define kdebug(fmt, ...) printk("FDPIC "fmt"\n" ,##__VA_ARGS__ )
++int lkl_printf(const char *, ...);
++#define kdebug(fmt, ...) lkl_printf("FDPIC "fmt"\n", ##__VA_ARGS__)
+ #else
+ #define kdebug(fmt, ...) do {} while(0)
+ #endif
+diff --git a/linux/kernel/fork.c b/linux/kernel/fork.c
+index f0b58479534f..220079143f0e 100644
+--- a/linux/kernel/fork.c
++++ b/linux/kernel/fork.c
+@@ -413,6 +413,7 @@ void free_task(struct task_struct *tsk)
+ 	arch_release_task_struct(tsk);
+ 	if (tsk->flags & PF_KTHREAD)
+ 		free_kthread_struct(tsk);
++pr_warn("free_task_struct %s", tsk->comm);
+ 	free_task_struct(tsk);
+ }
+ EXPORT_SYMBOL(free_task);
+@@ -1166,7 +1167,10 @@ static void complete_vfork_done(struct task_struct *tsk)
+ 	vfork = tsk->vfork_done;
+ 	if (likely(vfork)) {
+ 		tsk->vfork_done = NULL;
++lkl_printf("complete_vfork_done pid=%d\n", tsk->pid);
++lkl_printf("(complete_vfork_done)wait->head = 0x%lx\n", vfork->wait.head.next);
+ 		complete(vfork);
++lkl_printf("complete_vfork_done2 pid=%d\n", tsk->pid);
+ 	}
+ 	task_unlock(tsk);
+ }
+@@ -1176,6 +1180,7 @@ static int wait_for_vfork_done(struct task_struct *child,
+ {
+ 	int killed;
+ 
++lkl_printf("(wait_for_vfork_done)wait->head = 0x%lx\n", vfork->wait.head.next);
+ 	freezer_do_not_count();
+ 	killed = wait_for_completion_killable(vfork);
+ 	freezer_count();
+@@ -2126,6 +2131,7 @@ struct task_struct *fork_idle(int cpu)
+ 	return task;
+ }
+ 
++static	struct completion vfork;
+ /*
+  *  Ok, this is the main fork-routine.
+  *
+@@ -2139,7 +2145,6 @@ long _do_fork(unsigned long clone_flags,
+ 	      int __user *child_tidptr,
+ 	      unsigned long tls)
+ {
+-	struct completion vfork;
+ 	struct pid *pid;
+ 	struct task_struct *p;
+ 	int trace = 0;
+diff --git a/linux/kernel/sched/Makefile b/linux/kernel/sched/Makefile
+index 7fe183404c38..f5fe26377ddc 100644
+--- a/linux/kernel/sched/Makefile
++++ b/linux/kernel/sched/Makefile
+@@ -29,3 +29,6 @@ obj-$(CONFIG_CPU_FREQ) += cpufreq.o
+ obj-$(CONFIG_CPU_FREQ_GOV_SCHEDUTIL) += cpufreq_schedutil.o
+ obj-$(CONFIG_MEMBARRIER) += membarrier.o
+ obj-$(CONFIG_CPU_ISOLATION) += isolation.o
++
++CFLAGS_wait.o=-g -O0
++CFLAGS_completion.o=-g -O0
+diff --git a/linux/kernel/sched/completion.c b/linux/kernel/sched/completion.c
+index a1ad5b7d5521..cf5a4644e185 100644
+--- a/linux/kernel/sched/completion.c
++++ b/linux/kernel/sched/completion.c
+@@ -31,8 +31,10 @@ void complete(struct completion *x)
+ 
+ 	spin_lock_irqsave(&x->wait.lock, flags);
+ 
++lkl_printf("(complete)wait->head = 0x%lx\n", x->wait.head.next);
+ 	if (x->done != UINT_MAX)
+ 		x->done++;
++lkl_printf("(complete)wait->head = 0x%lx\n", x->wait.head.next);
+ 	__wake_up_locked(&x->wait, TASK_NORMAL, 1);
+ 	spin_unlock_irqrestore(&x->wait.lock, flags);
+ }
+diff --git a/linux/kernel/sched/wait.c b/linux/kernel/sched/wait.c
+index 5dd47f1103d1..fae38d2afa62 100644
+--- a/linux/kernel/sched/wait.c
++++ b/linux/kernel/sched/wait.c
+@@ -71,6 +71,7 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
+ 
+ 	lockdep_assert_held(&wq_head->lock);
+ 
++lkl_printf("(__wake_up_common)wait->head = 0x%lx\n", wq_head->head.next);
+ 	if (bookmark && (bookmark->flags & WQ_FLAG_BOOKMARK)) {
+ 		curr = list_next_entry(bookmark, entry);
+ 
+diff --git a/linux/tools/lkl/lib/rump-host.c b/linux/tools/lkl/lib/rump-host.c
+index 97ffe497c0a2..0fe3235efa83 100644
+--- a/linux/tools/lkl/lib/rump-host.c
++++ b/linux/tools/lkl/lib/rump-host.c
+@@ -180,6 +180,10 @@ static int rump_tls_set(struct lkl_tls_key *key, void *data)
+ {
+ 	struct lkl_tls_key *new = rumpuser_getcookie();
+ 
++	if (!data) {
++		rumpuser_setcookie(NULL);
++		return 0;
++	}
+ 	if (!new)
+ 		rumpuser_malloc(sizeof(struct lkl_tls_key), 0, (void **)&new);
+ 
+@@ -532,7 +536,8 @@ static void timer_free(void *_timer)
+ 
+ static void panic(void)
+ {
+-	rumpuser_exit(RUMPUSER_PANIC);
++	*(volatile char *)0 = 0;
++//	rumpuser_exit(RUMPUSER_PANIC);
+ }
+ 
+ struct lkl_host_operations lkl_host_ops = {

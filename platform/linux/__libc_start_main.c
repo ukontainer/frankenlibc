@@ -54,7 +54,9 @@ __libc_start_main(int (*main)(int,char **,char **), int argc, char **argv)
 	/* This is forked (child) process */
 	if (aux[AT_PARENT_SYSCALL]) {
 		extern long (*lkl_parent_syscall)(long no, long *params);
+		int __platform_write(int fd, const void *buf, size_t count);
 		lkl_parent_syscall = (void *)aux[AT_PARENT_SYSCALL];
+		__platform_write(1, "call child\n", 11);
 		main(argc, argv, envp);
 		exit(0);
 		return 0;

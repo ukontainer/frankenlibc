@@ -6,17 +6,10 @@
 #include <errno.h>
 
 int
-main(int argc, char *argv[])
+call_fork(const char *path, const char **e_argv, const char **e_envv)
 {
 	int pid, ret, status;
-	char buf[16] = "/";
-	if (!argv[1])
-		argv[1] = "bin/hush";
-	strcat(buf, argv[1]);
-	const char *path = buf;
-	const char *e_argv[] = {buf, NULL};
-        //const char *e_argv[] = {buf, argv[2], argv[3], argv[4], NULL};
-	const char *e_envv[] = {"UMP_VERBOSE=1", "PATH=/bin", "LKL_BOOT_CMDLINE=child=5 mem=100M virtio-pci.force_legacy=1", NULL};
+	siginfo_t s_info;
 
 	printf("parent pid=%d, ppid=%d\n", getpid(), getppid());
         pid = vfork();
@@ -72,15 +65,42 @@ main(int argc, char *argv[])
 		// parent
 		printf("parent ch pid=%d, pa pid=%d\n", pid, 0);
 		/* XXX: since ld.so calls exit(main), this won't be called...  */
-		if ((ret = waitid(P_PID, pid, NULL, WEXITED)) < 0) {
-			perror("wait error2");
+		if ((ret = waitid(P_PID, pid, &s_info, WEXITED)) < 0) {
+			printf("ret=%d,errno=%d\n", ret, errno);
+			perror("wait error");
 			return -1;
 		}
 		printf("The child (pid=%d) existed with status(%d).\n",
-		       pid, WEXITSTATUS(status));
+		       pid, s_info.si_status);
 
 	}
 
+	return 0;
+}
+
+int
+main(int argc, char *argv[])
+{
+	int ret;
+	char buf[256] = "/";
+
+	if (!argv[1])
+		argv[1] = "bin/hush";
+	strcat(buf, argv[1]);
+	const char *path = buf;
+	//const char *e_argv[] = {buf, NULL};
+	const char *e_argv[5] = {buf, argv[2], argv[3], argv[4], NULL};
+	const char *e_envv[4] = {"UMP_VERBOSE=1", "PATH=/bin", "LKL_BOOT_CMDLINE=child=5 mem=100M virtio-pci.force_legacy=1", NULL};
+
+	ret = call_fork(path, e_argv, e_envv);
 
 	return 0;
+	char tmp[100];
+	int i = 0;
+
+	for (i = 0; i < 30; i++) {
+		gets(tmp);
+		if (!ret)
+			ret =call_fork(path, e_argv, e_envv);
+	}
 }
