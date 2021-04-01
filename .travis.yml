@@ -3,7 +3,9 @@ cache: ccache
 filter_secrets: false
 git:
   submodules: false
-
+branches:
+  except:
+    - /^dev/
 
 stages:
   - test
@@ -34,7 +36,7 @@ jobs:
         - mkdir ~/junit
         - export PATH=/usr/local/opt/ccache/libexec:$HOME/.local/bin:$PATH
         - HOMEBREW_NO_AUTO_UPDATE=1 brew install gnu-sed ccache e2fsprogs
-        - HOMEBREW_NO_AUTO_UPDATE=1 brew install binutils
+        - HOMEBREW_NO_AUTO_UPDATE=1 brew install binutils jq
         - pip install --user yamlish junit_xml
         - ln -sf /usr/local/bin/gsed ~/.local/bin/sed
         - ln -sf /usr/local/bin/gdate ~/.local/bin/date
@@ -52,7 +54,7 @@ jobs:
         - mkdir ~/junit
         - export PATH=/usr/local/opt/ccache/libexec:$HOME/.local/bin:$PATH
         - HOMEBREW_NO_AUTO_UPDATE=1 brew install gnu-sed ccache e2fsprogs
-        - HOMEBREW_NO_AUTO_UPDATE=1 brew install binutils
+        - HOMEBREW_NO_AUTO_UPDATE=1 brew install binutils jq
         - pip install --user yamlish junit_xml
         - ln -sf /usr/local/bin/gsed ~/.local/bin/sed
         - ln -sf /usr/local/bin/gdate ~/.local/bin/date
@@ -70,7 +72,7 @@ jobs:
       before_install:
         - sudo dpkg --add-architecture armhf
         - sudo apt-get update || true
-        - sudo apt-get install libc6:armhf crossbuild-essential-armhf bc
+        - sudo apt-get install libc6:armhf crossbuild-essential-armhf bc jq
     - stage: test
       arch: arm64
       os: linux
@@ -80,7 +82,7 @@ jobs:
         - ARCH=arm64
       before_install:
         - sudo apt-get update || true
-        - sudo apt-get install bc
+        - sudo apt-get install bc jq
     - stage: downstream
       before_script:
       script: bash -e ./.travis-trigger.sh ukontainer/rumprun-packages lkl-musl
