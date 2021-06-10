@@ -1,5 +1,11 @@
-Submodule musl contains untracked content
-Submodule musl contains modified content
+diff --git a/musl/arch/aarch64-darwin b/musl/arch/aarch64-darwin
+new file mode 120000
+index 00000000..ec418419
+--- /dev/null
++++ b/musl/arch/aarch64-darwin
+@@ -0,0 +1 @@
++aarch64
+\ No newline at end of file
 diff --git a/musl/arch/aarch64/bits/limits.h b/musl/arch/aarch64/bits/limits.h
 index 0226588c..86ef7663 100644
 --- a/musl/arch/aarch64/bits/limits.h
@@ -37,25 +43,28 @@ index b64fb3dd..17219414 100644
 +);
 +#endif
 diff --git a/musl/configure b/musl/configure
-index b25dad45..f8550045 100755
+index b25dad45..b55c6a63 100755
 --- a/musl/configure
 +++ b/musl/configure
 @@ -315,6 +315,7 @@ printf "%s\n" "$target"
  #
  case "$target" in
  # Catch these early to simplify matching for 32-bit archs
-+arm64-apple-darwin*) ARCH=aarch64-darwin ;;
++arm64-apple-darwin*|aarch64-apple-darwin*) ARCH=aarch64-darwin ;;
  arm*) ARCH=arm ;;
  aarch64*) ARCH=aarch64 ;;
  i?86-nt32*) ARCH=nt32 ;;
-@@ -373,6 +374,12 @@ LKL_INCLUDE="$srcdir/arch/lkl/src/*.c"
+@@ -371,8 +372,14 @@ fi
  
- if [[ "$target" = "x86_64-apple-darwin"* ]] ; then
+ LKL_INCLUDE="$srcdir/arch/lkl/src/*.c"
+ 
+-if [[ "$target" = "x86_64-apple-darwin"* ]] ; then
++if [[ "$ARCH" = "x86_64-darwin"* ]] ; then
  LKL_INCLUDE="$LKL_INCLUDE $srcdir/src/setjmp/x86_64/*.s"
 +LKL_EXCLUDE="$LKL_EXCLUDE $srcdir/src/setjmp/setjmp.c \
 + $srcdir/src/setjmp/longjmp.c"
-+elif [[ "$target" = "arm64-apple-darwin"* ]] ; then
-+LKL_INCLUDE="$LKL_INCLUDE $srcdir/src/setjmp/aarch64/*.s"
++elif [[ "$ARCH" = "aarch64-darwin"* ]] ; then
++LKL_INCLUDE="$LKL_INCLUDE $srcdir/src/setjmp/aarch64-darwin/*.s"
 +LKL_EXCLUDE="$LKL_EXCLUDE $srcdir/src/setjmp/setjmp.c \
 + $srcdir/src/setjmp/longjmp.c"
  fi
@@ -65,7 +74,7 @@ index b25dad45..f8550045 100755
  || tryflag CFLAGS_C99FSE -fno-builtin
  tryflag CFLAGS_C99FSE -fexcess-precision=standard \
  || { test "$ARCH" = i386 && tryflag CFLAGS_C99FSE -ffloat-store ; }
-+if [[ "$target" != "arm64-apple-darwin"* ]] ; then
++if [[ "$ARCH" != "aarch64-darwin"* ]] ; then
  tryflag CFLAGS_C99FSE -frounding-math
 +fi
  
@@ -75,7 +84,7 @@ index b25dad45..f8550045 100755
  #
  tryflag CFLAGS_AUTO -Werror=implicit-function-declaration
  tryflag CFLAGS_AUTO -Werror=implicit-int
-+if [[ "$target" != "arm64-apple-darwin"* ]] ; then
++if [[ "$ARCH" != "aarch64-darwin"* ]] ; then
  tryflag CFLAGS_AUTO -Werror=pointer-sign
 +fi
  tryflag CFLAGS_AUTO -Werror=pointer-arith
@@ -120,41 +129,100 @@ index 00000000..22775d77
 +.section __TEXT,.fini
 +	ldp x29,x30,[sp],#16
 +	ret
-diff --git a/musl/src/setjmp/aarch64/longjmp.s b/musl/src/setjmp/aarch64/longjmp.s
-index 7c4655fa..47d4f453 100644
---- a/musl/src/setjmp/aarch64/longjmp.s
-+++ b/musl/src/setjmp/aarch64/longjmp.s
-@@ -1,7 +1,11 @@
- .global _longjmp
+diff --git a/musl/src/env/__libc_start_main.c b/musl/src/env/__libc_start_main.c
+index c3e73f59..77973e5a 100644
+--- a/musl/src/env/__libc_start_main.c
++++ b/musl/src/env/__libc_start_main.c
+@@ -65,8 +65,11 @@ void libc_start_init(void)
+ {
+ 	_init();
+ 	uintptr_t a = (uintptr_t)&__init_array_start;
+-	for (; a<(uintptr_t)&__init_array_end; a+=sizeof(void(*)()))
++	for (; a<(uintptr_t)&__init_array_end; a+=sizeof(void(*)())) {
++		if (*(void (**)(void))a == NULL)
++			continue;
+ 		(*(void (**)(void))a)();
++	}
+ }
+ 
+ weak_alias(libc_start_init, __libc_start_init);
+diff --git a/musl/src/exit/exit.c b/musl/src/exit/exit.c
+index 5ef34bae..cf4b27c8 100644
+--- a/musl/src/exit/exit.c
++++ b/musl/src/exit/exit.c
+@@ -20,8 +20,11 @@ weak hidden void (*const __fini_array_start)(void), (*const __fini_array_end)(vo
+ void libc_exit_fini(void)
+ {
+ 	uintptr_t a = (uintptr_t)&__fini_array_end;
+-	for (; a>(uintptr_t)&__fini_array_start; a-=sizeof(void(*)()))
++	for (; a>(uintptr_t)&__fini_array_start; a-=sizeof(void(*)())) {
++		if (*(void (**)())(a-sizeof(void(*)())) == NULL)
++			continue;
+ 		(*(void (**)())(a-sizeof(void(*)())))();
++	}
+ 	_fini();
+ }
+ 
+diff --git a/musl/src/setjmp/aarch64-darwin/longjmp.s b/musl/src/setjmp/aarch64-darwin/longjmp.s
+new file mode 100644
+index 00000000..b6945def
+--- /dev/null
++++ b/musl/src/setjmp/aarch64-darwin/longjmp.s
+@@ -0,0 +1,24 @@
++.global _longjmp
 +	.align        4;
- .global longjmp
++.global longjmp
 +	.align        4;
-+#ifndef __APPLE__
- .type _longjmp,%function
- .type longjmp,%function
-+#endif
- _longjmp:
- longjmp:
- 	// IHI0055B_aapcs64.pdf 5.1.1, 5.1.2 callee saved registers
-diff --git a/musl/src/setjmp/aarch64/setjmp.s b/musl/src/setjmp/aarch64/setjmp.s
-index f49288aa..4d77491c 100644
---- a/musl/src/setjmp/aarch64/setjmp.s
-+++ b/musl/src/setjmp/aarch64/setjmp.s
-@@ -1,9 +1,14 @@
- .global __setjmp
++_longjmp:
++longjmp:
++	// IHI0055B_aapcs64.pdf 5.1.1, 5.1.2 callee saved registers
++	ldp x19, x20, [x0,#0]
++	ldp x21, x22, [x0,#16]
++	ldp x23, x24, [x0,#32]
++	ldp x25, x26, [x0,#48]
++	ldp x27, x28, [x0,#64]
++	ldp x29, x30, [x0,#80]
++	ldr x2, [x0,#104]
++	mov sp, x2
++	ldp d8 , d9, [x0,#112]
++	ldp d10, d11, [x0,#128]
++	ldp d12, d13, [x0,#144]
++	ldp d14, d15, [x0,#160]
++
++	mov x0, x1
++	cbnz x1, 1f
++	mov x0, #1
++1:	br x30
+diff --git a/musl/src/setjmp/aarch64-darwin/setjmp.s b/musl/src/setjmp/aarch64-darwin/setjmp.s
+new file mode 100644
+index 00000000..f78284cc
+--- /dev/null
++++ b/musl/src/setjmp/aarch64-darwin/setjmp.s
+@@ -0,0 +1,24 @@
++.global __setjmp
 +	.align        4;
- .global _setjmp
++.global _setjmp
 +	.align        4;
- .global setjmp
++.global setjmp
 +	.align        4;
-+#ifndef __APPLE__
- .type __setjmp,@function
- .type _setjmp,@function
- .type setjmp,@function
-+#endif
- __setjmp:
- _setjmp:
- setjmp:
++__setjmp:
++_setjmp:
++setjmp:
++	// IHI0055B_aapcs64.pdf 5.1.1, 5.1.2 callee saved registers
++	stp x19, x20, [x0,#0]
++	stp x21, x22, [x0,#16]
++	stp x23, x24, [x0,#32]
++	stp x25, x26, [x0,#48]
++	stp x27, x28, [x0,#64]
++	stp x29, x30, [x0,#80]
++	mov x2, sp
++	str x2, [x0,#104]
++	stp  d8,  d9, [x0,#112]
++	stp d10, d11, [x0,#128]
++	stp d12, d13, [x0,#144]
++	stp d14, d15, [x0,#160]
++	mov x0, #0
++	ret
 diff --git a/musl/src/thread/aarch64-darwin/syscall_cp.s b/musl/src/thread/aarch64-darwin/syscall_cp.s
 new file mode 100644
 index 00000000..83a87e0a

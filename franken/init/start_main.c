@@ -48,8 +48,12 @@ finifn()
 {
 	uintptr_t a = (uintptr_t)&__fini_array_end;
 
-	for (; a>(uintptr_t)&__fini_array_start; a -= sizeof(void(*)()))
+	for (; a>(uintptr_t)&__fini_array_start; a -= sizeof(void(*)())) {
+		if (*(void (**)())(a - sizeof(void(*)())) == NULL) {
+			continue;
+		}
 		(*(void (**)())(a - sizeof(void(*)())))();
+	}
 	_fini();
 
 	darwin_mod_term_func();
